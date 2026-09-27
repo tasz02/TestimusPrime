@@ -118,8 +118,14 @@ jobs:
               return text.replace("|", "\\|").replace("\n", "<br>")
 
           def is_negative(test_case):
-              status_codes = test_case.get("expectedStatusCodes") or []
-              return bool(status_codes) and all(isinstance(code, int) and code >= 400 for code in status_codes)
+              normalized_status_codes = []
+              for code in (test_case.get("expectedStatusCodes") or []):
+                  try:
+                      normalized_status_codes.append(int(code))
+                  except (TypeError, ValueError):
+                      return False
+
+              return bool(normalized_status_codes) and all(code >= 400 for code in normalized_status_codes)
 
           def normalized_suites(test_case):
               suite_map = {
@@ -162,7 +168,7 @@ jobs:
           print(f"| Workflow run ID | `{escape_cell(os.environ['WORKFLOW_RUN_ID'])}` |")
           print()
 
-          if suite:
+          if suite is not None:
               analysis = suite.get("analysis") or {}
               endpoints = analysis.get("endpoints") or []
               test_cases = suite.get("testCases") or []
