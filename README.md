@@ -5,7 +5,7 @@ Draft C# framework for AI-assisted backend API test generation, execution, analy
 ## What this draft covers
 
 - Analyzes a connected ASP.NET API repository by scanning controller attributes and minimal API mappings
-- Generates draft test cases directly from detected endpoints
+- Generates draft positive and negative test cases directly from detected endpoints
 - Categorizes generated tests into `Smoke` and `Regression`
 - Runs smoke tests for commit-triggered runs and regression tests for PR-triggered runs
 - Logs request/response pairs, execution timings, and pass/fail outcomes
@@ -95,6 +95,6 @@ Endpoints:
 ## Current draft limitations
 
 - Endpoint discovery is currently heuristic and optimized for ASP.NET controller attributes and minimal APIs
-- Request bodies are scaffolded with placeholder JSON instead of schema-aware payload generation
+- Request bodies are scaffolded with placeholder and malformed JSON instead of schema-aware payload generation
 - Auth, dependency mocking, and semantic code understanding are not implemented yet
 - Suite assignment is rules-based and intended as a starting point for later AI enrichment
