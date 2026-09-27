@@ -104,7 +104,9 @@ public sealed partial class TestCaseGenerator
         var resolved = RouteTokenRegex.Replace(route, static match =>
         {
             var token = match.Groups[1].Value.ToLowerInvariant();
+            var constraint = match.Groups[2].Value.ToLowerInvariant();
             return token.Contains("guid", StringComparison.Ordinal)
+                   || constraint.Contains("guid", StringComparison.Ordinal)
                 ? "not-a-guid"
                 : "invalid";
         });
@@ -120,6 +122,6 @@ public sealed partial class TestCaseGenerator
             ["Accept"] = "application/json"
         };
 
-    [GeneratedRegex("\\{([^}:]+)(?::[^}]+)?\\}")]
+    [GeneratedRegex("\\{([^}:]+)(?::([^}]+))?\\}")]
     private static partial Regex RouteTokenPattern();
 }
