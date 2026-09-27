@@ -35,6 +35,10 @@ class GeneratedSuiteVersionTests(unittest.TestCase):
             "123456-123456",
         )
 
+    def test_normalize_rejects_existing_different_run_id_suffix(self):
+        with self.assertRaisesRegex(ValueError, "version_tag must omit any existing workflow run ID suffix"):
+            MODULE.normalize_provided_tag("custom-suite-654321", "123456")
+
     def test_normalize_rejects_empty_tag(self):
         with self.assertRaisesRegex(ValueError, "version_tag must include a non-empty prefix"):
             MODULE.normalize_provided_tag("", "123456")

@@ -8,7 +8,7 @@ on:
         required: false
         default: tests/TestimusPrime.Tests/Fixtures/SampleApi
       test_suite_version_tag:
-        description: Optional version tag for the generated test suite
+        description: Optional custom prefix for the generated test suite version tag
         required: false
         default: ""
       create_git_tag:

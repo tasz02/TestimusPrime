@@ -20,6 +20,8 @@ def normalize_provided_tag(version_tag: str, run_id: str) -> str:
         normalized_tag = normalized_tag[: -(len(run_id) + 1)].rstrip("-")
         if not normalized_tag:
             raise ValueError("version_tag must include a non-empty prefix")
+    elif RUN_ID_SUFFIX_PATTERN.fullmatch(normalized_tag):
+        raise ValueError("version_tag must omit any existing workflow run ID suffix")
 
     return f"{normalized_tag}-{run_id}"
 
