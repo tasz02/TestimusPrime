@@ -76,7 +76,7 @@ You can launch the built-in flows from the Actions tab with manual workflows:
 - `Run smoke suite` - starts the sample API fixture and runs the runner with `--trigger=Commit`
 - `Run regression suite` - starts the sample API fixture and runs the runner with `--trigger=PullRequest`
 
-The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. The run-generated workflow accepts that version tag, resolves the matching artifact automatically, and lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
+The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. Generated suite version tags always end with `-<workflow-run-id>`; when you supply `test_suite_version_tag`, treat it as a custom prefix and omit any existing run-ID suffix. The run-generated workflow can then resolve the matching artifact from `test_suite_version_tag` alone. It also lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
 
 ## Dashboard
 
