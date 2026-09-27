@@ -58,15 +58,25 @@ jobs:
               "X-GitHub-Api-Version": "2022-11-28",
           }
 
-          artifacts_url = f"{api_url}/repos/{repository}/actions/artifacts?{urllib.parse.urlencode({'name': artifact_name, 'per_page': 100})}"
-          artifacts_request = urllib.request.Request(artifacts_url, headers=headers)
-          with urllib.request.urlopen(artifacts_request) as response:
-              payload = json.load(response)
+          matching_artifacts = []
+          page = 1
+          while True:
+              artifacts_url = f"{api_url}/repos/{repository}/actions/artifacts?{urllib.parse.urlencode({'name': artifact_name, 'per_page': 100, 'page': page})}"
+              artifacts_request = urllib.request.Request(artifacts_url, headers=headers)
+              with urllib.request.urlopen(artifacts_request) as response:
+                  payload = json.load(response)
 
-          matching_artifacts = [
-              artifact for artifact in payload.get("artifacts", [])
-              if artifact.get("name") == artifact_name
-          ]
+              artifacts = payload.get("artifacts", [])
+              matching_artifacts.extend(
+                  artifact for artifact in artifacts
+                  if artifact.get("name") == artifact_name
+              )
+
+              total_count = int(payload.get("total_count", 0))
+              if (page * 100) >= total_count or not artifacts:
+                  break
+
+              page += 1
 
           if not matching_artifacts:
               print(f"No generated testcase artifact was found for version tag '{version_tag}'.")
