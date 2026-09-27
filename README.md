@@ -1,2 +1,2 @@
 Just another AutoBot
-AI driven autotest framework
+(AI driven autotest framework)
