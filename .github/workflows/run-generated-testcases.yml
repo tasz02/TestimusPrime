@@ -1,0 +1,67 @@
+name: Run generated testcases
+
+on:
+  workflow_dispatch:
+    inputs:
+      generation_run_id:
+        description: Workflow run ID that produced the generated-testcases artifact
+        required: true
+      test_suite_version_tag:
+        description: Version tag used when the testcase artifact was generated
+        required: true
+      api_base_url:
+        description: Absolute base URL of the API to test
+        required: true
+      trigger_event:
+        description: Suite selection to execute
+        required: false
+        default: Commit
+      timeout_seconds:
+        description: HTTP timeout for each generated request
+        required: false
+        default: "30"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  run-generated-testcases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore /home/runner/work/TestimusPrime/TestimusPrime/TestimusPrime.slnx
+
+      - name: Download generated testcase artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-testcases-${{ inputs.test_suite_version_tag }}
+          path: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/generated-testcases/${{ inputs.test_suite_version_tag }}
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.generation_run_id }}
+
+      - name: Run saved testcase suite
+        run: >
+          dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
+          --mode=ExecuteGenerated
+          --test-suite=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/generated-testcases/${{ inputs.test_suite_version_tag }}/${{ inputs.test_suite_version_tag }}.json
+          --api-base-url=${{ inputs.api_base_url }}
+          --trigger=${{ inputs.trigger_event }}
+          --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
+          --timeout-seconds=${{ inputs.timeout_seconds }}
+
+      - name: Upload generated-suite run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-suite-run-${{ inputs.test_suite_version_tag }}
+          path: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
