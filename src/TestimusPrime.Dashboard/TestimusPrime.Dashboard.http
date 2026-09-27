@@ -1,0 +1,9 @@
+@TestimusPrime.Dashboard_HostAddress = http://localhost:5087
+
+GET {{TestimusPrime.Dashboard_HostAddress}}/api/summary
+Accept: application/json
+
+###
+
+GET {{TestimusPrime.Dashboard_HostAddress}}/api/runs
+Accept: application/json
