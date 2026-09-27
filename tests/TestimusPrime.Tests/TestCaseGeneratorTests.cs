@@ -21,18 +21,16 @@ public sealed class TestCaseGeneratorTests
         var generator = new TestCaseGenerator();
 
         var testCases = generator.Generate(analysis);
+        var invalidBody = testCases.Single(test => test.Id == "test:2:invalid-body");
+        var invalidRoute = testCases.Single(test => test.Id == "test:3:invalid-route");
 
         testCases.Single(test => test.Endpoint.Route == "/health").Suites.Should().BeEquivalentTo([TestSuite.Smoke, TestSuite.Regression]);
         testCases.Single(test => test.Id == "test:2").Suites.Should().BeEquivalentTo([TestSuite.Regression]);
-        testCases.Should().ContainSingle(test =>
-            test.Id == "test:2:invalid-body"
-            && test.Body == "{"
-            && test.ExpectedStatusCodes.SequenceEqual([400])
-            && test.Suites.SequenceEqual([TestSuite.Regression]));
-        testCases.Should().ContainSingle(test =>
-            test.Id == "test:3:invalid-route"
-            && test.RelativePath == "/orders/invalid"
-            && test.ExpectedStatusCodes.SequenceEqual([400, 404])
-            && test.Suites.SequenceEqual([TestSuite.Regression]));
+        invalidBody.Body.Should().Be("{");
+        invalidBody.ExpectedStatusCodes.Should().Equal([400]);
+        invalidBody.Suites.Should().Equal([TestSuite.Regression]);
+        invalidRoute.RelativePath.Should().Be("/orders/invalid");
+        invalidRoute.ExpectedStatusCodes.Should().Equal([400, 404]);
+        invalidRoute.Suites.Should().Equal([TestSuite.Regression]);
     }
 }
