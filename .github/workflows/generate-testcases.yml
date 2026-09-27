@@ -117,15 +117,24 @@ jobs:
               text = "" if value is None else str(value)
               return text.replace("|", "\\|").replace("\n", "<br>")
 
-          def is_negative(test_case):
+          def classify_test_case(test_case):
               normalized_status_codes = []
               for code in (test_case.get("expectedStatusCodes") or []):
                   try:
                       normalized_status_codes.append(int(code))
                   except (TypeError, ValueError):
-                      return False
+                      return "Unclassified"
 
-              return bool(normalized_status_codes) and all(code >= 400 for code in normalized_status_codes)
+              if not normalized_status_codes:
+                  return "Unclassified"
+
+              if all(code >= 400 for code in normalized_status_codes):
+                  return "Negative"
+
+              if all(code < 400 for code in normalized_status_codes):
+                  return "Positive"
+
+              return "Unclassified"
 
           def normalized_suites(test_case):
               suite_map = {
@@ -172,8 +181,9 @@ jobs:
               analysis = suite.get("analysis") or {}
               endpoints = analysis.get("endpoints") or []
               test_cases = suite.get("testCases") or []
-              positive_count = sum(1 for test_case in test_cases if not is_negative(test_case))
-              negative_count = len(test_cases) - positive_count
+              positive_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Positive")
+              negative_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Negative")
+              unclassified_count = len(test_cases) - positive_count - negative_count
               endpoint_test_cases = {}
 
               for test_case in test_cases:
@@ -190,6 +200,7 @@ jobs:
               print(f"| Regression | {suite_counts(test_cases, 'Regression')} |")
               print(f"| Positive | {positive_count} |")
               print(f"| Negative | {negative_count} |")
+              print(f"| Unclassified | {unclassified_count} |")
               print()
 
               notes = analysis.get("notes") or []
@@ -202,14 +213,15 @@ jobs:
 
               print(f"### Detected endpoints ({len(endpoints)})")
               print()
-              print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative |")
-              print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |")
+              print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative | Unclassified |")
+              print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
               for endpoint in endpoints:
                   endpoint_cases = endpoint_test_cases.get(endpoint.get("id"), [])
                   smoke_count = suite_counts(endpoint_cases, "Smoke")
                   regression_count = suite_counts(endpoint_cases, "Regression")
-                  endpoint_positive_count = sum(1 for test_case in endpoint_cases if not is_negative(test_case))
-                  endpoint_negative_count = len(endpoint_cases) - endpoint_positive_count
+                  endpoint_positive_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Positive")
+                  endpoint_negative_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Negative")
+                  endpoint_unclassified_count = len(endpoint_cases) - endpoint_positive_count - endpoint_negative_count
                   source_file = endpoint.get("sourceFile") or "(unknown source)"
                   source_line = endpoint.get("sourceLine")
                   source = f"{source_file}:{source_line}" if source_line is not None else source_file
@@ -218,7 +230,7 @@ jobs:
                       f"`{escape_cell(endpoint.get('route'))}` | "
                       f"`{escape_cell(source)}` | "
                       f"{len(endpoint_cases)} | {smoke_count} | {regression_count} | "
-                      f"{endpoint_positive_count} | {endpoint_negative_count} |"
+                      f"{endpoint_positive_count} | {endpoint_negative_count} | {endpoint_unclassified_count} |"
                   )
               print()
           else:
