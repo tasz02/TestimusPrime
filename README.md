@@ -72,11 +72,11 @@ dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusP
 You can launch the built-in flows from the Actions tab with manual workflows:
 
 - `Generate testcases` - analyzes a repository-relative folder, saves a versioned testcase suite artifact, and can push a matching git tag
-- `Run generated testcases` - downloads a previously generated testcase artifact from a selected workflow run and executes it against a target API
+- `Run generated testcases` - resolves a previously generated testcase artifact from its version tag and executes it against a target API
 - `Run smoke suite` - starts the sample API fixture and runs the runner with `--trigger=Commit`
 - `Run regression suite` - starts the sample API fixture and runs the runner with `--trigger=PullRequest`
 
-The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
+The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. The run-generated workflow accepts that version tag, resolves the matching artifact automatically, and lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
 
 ## Dashboard
 
