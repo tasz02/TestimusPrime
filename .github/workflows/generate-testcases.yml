@@ -188,7 +188,8 @@ jobs:
 
               for test_case in test_cases:
                   endpoint_id = ((test_case.get("endpoint") or {}).get("id"))
-                  endpoint_test_cases.setdefault(endpoint_id, []).append(test_case)
+                  if endpoint_id is not None:
+                      endpoint_test_cases.setdefault(endpoint_id, []).append(test_case)
 
               print("### Generated testcase counts")
               print()
@@ -216,7 +217,8 @@ jobs:
               print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative | Unclassified |")
               print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
               for endpoint in endpoints:
-                  endpoint_cases = endpoint_test_cases.get(endpoint.get("id"), [])
+                  endpoint_id = endpoint.get("id")
+                  endpoint_cases = endpoint_test_cases.get(endpoint_id, []) if endpoint_id is not None else []
                   smoke_count = suite_counts(endpoint_cases, "Smoke")
                   regression_count = suite_counts(endpoint_cases, "Regression")
                   endpoint_positive_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Positive")
