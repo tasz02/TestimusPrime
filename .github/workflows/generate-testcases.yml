@@ -202,7 +202,7 @@ jobs:
           if suite is not None:
               analysis = suite.get("analysis") or {}
               endpoints = [endpoint for endpoint in (analysis.get("endpoints") or []) if isinstance(endpoint, Mapping)]
-              test_cases = suite.get("testCases") or []
+              test_cases = [test_case for test_case in (suite.get("testCases") or []) if isinstance(test_case, Mapping)]
               positive_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Positive")
               negative_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Negative")
               unclassified_count = len(test_cases) - positive_count - negative_count
