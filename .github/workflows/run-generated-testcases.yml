@@ -36,26 +36,15 @@ jobs:
         env:
           VERSION_TAG: ${{ inputs.test_suite_version_tag }}
         run: |
-          python <<'PY'
-          import os
-          import re
-          import sys
+          set -euo pipefail
+          version_tag="${VERSION_TAG}"
+          artifact_name="generated-testcases-${version_tag}"
+          run_id="$(python "${GITHUB_WORKSPACE}/.github/scripts/generated_suite_version.py" extract-run-id --version-tag "$version_tag")"
 
-          version_tag = os.environ["VERSION_TAG"]
-          artifact_name = f"generated-testcases-{version_tag}"
-
-          match = re.fullmatch(r"(?:.+-)?(\d+)", version_tag)
-          if not match:
-              print(
-                  "The test_suite_version_tag must end with the generating workflow run ID."
-              )
-              sys.exit(1)
-          run_id = match.group(1)
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"artifact_name={artifact_name}\n")
-              output.write(f"generation_run_id={run_id}\n")
-          PY
+          {
+            echo "artifact_name=${artifact_name}"
+            echo "generation_run_id=${run_id}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
         uses: actions/checkout@v5
