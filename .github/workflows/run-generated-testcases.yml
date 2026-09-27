@@ -3,6 +3,10 @@ name: Run generated testcases
 on:
   workflow_dispatch:
     inputs:
+      generation_run_id:
+        description: Optional workflow run ID override for custom version tags that do not end with the generating run ID
+        required: false
+        default: ""
       test_suite_version_tag:
         description: Version tag of the generated testcase suite to execute
         required: true
@@ -34,68 +38,32 @@ jobs:
       - name: Resolve generated testcase artifact
         id: resolve_suite
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_API_URL: ${{ github.api_url }}
-          REPOSITORY: ${{ github.repository }}
+          GENERATION_RUN_ID: ${{ inputs.generation_run_id }}
           VERSION_TAG: ${{ inputs.test_suite_version_tag }}
         run: |
           python <<'PY'
-          import json
           import os
+          import re
           import sys
-          import urllib.parse
-          import urllib.request
 
-          api_url = os.environ["GITHUB_API_URL"]
-          repository = os.environ["REPOSITORY"]
-          token = os.environ["GITHUB_TOKEN"]
+          generation_run_id = os.environ["GENERATION_RUN_ID"].strip()
           version_tag = os.environ["VERSION_TAG"]
           artifact_name = f"generated-testcases-{version_tag}"
 
-          headers = {
-              "Accept": "application/vnd.github+json",
-              "Authorization": f"******",
-              "X-GitHub-Api-Version": "2022-11-28",
-          }
-
-          matching_artifacts = []
-          page = 1
-          while True:
-              artifacts_url = f"{api_url}/repos/{repository}/actions/artifacts?{urllib.parse.urlencode({'name': artifact_name, 'per_page': 100, 'page': page})}"
-              artifacts_request = urllib.request.Request(artifacts_url, headers=headers)
-              with urllib.request.urlopen(artifacts_request) as response:
-                  payload = json.load(response)
-
-              artifacts = payload.get("artifacts", [])
-              matching_artifacts.extend(
-                  artifact for artifact in artifacts
-                  if artifact.get("name") == artifact_name
-              )
-
-              total_count = int(payload.get("total_count", 0))
-              if (page * 100) >= total_count or not artifacts:
-                  break
-
-              page += 1
-
-          if not matching_artifacts:
-              print(f"No generated testcase artifact was found for version tag '{version_tag}'.")
-              sys.exit(1)
-
-          if len(matching_artifacts) > 1:
-              print(f"Multiple generated testcase artifacts were found for version tag '{version_tag}'.")
-              sys.exit(1)
-
-          artifact = matching_artifacts[0]
-          if artifact.get("expired", False):
-              print(f"The generated testcase artifact for version tag '{version_tag}' has expired and can no longer be downloaded.")
-              sys.exit(1)
-
-          workflow_run = artifact.get("workflow_run") or {}
-          run_id = workflow_run.get("id")
-          if not run_id:
-              print(f"The generated testcase artifact for version tag '{version_tag}' does not expose a workflow run ID.")
-              sys.exit(1)
+          if generation_run_id:
+              if not generation_run_id.isdigit():
+                  print("The optional generation_run_id input must be a numeric workflow run ID.")
+                  sys.exit(1)
+              run_id = generation_run_id
+          else:
+              match = re.fullmatch(r"testcases-v\d{17}-(\d+)", version_tag)
+              if not match:
+                  print(
+                      "The test_suite_version_tag does not end with an embedded workflow run ID. "
+                      "Provide generation_run_id when using a custom version tag."
+                  )
+                  sys.exit(1)
+              run_id = match.group(1)
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"artifact_name={artifact_name}\n")
