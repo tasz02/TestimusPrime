@@ -50,7 +50,7 @@ jobs:
 
           version_tag="${{ inputs.test_suite_version_tag }}"
           if [ -z "$version_tag" ]; then
-            version_tag="testcases-v$(date -u +%Y%m%d%H%M%S%3N)-${GITHUB_RUN_ID}"
+            version_tag="testcases-run-${GITHUB_RUN_ID}"
           else
             version_tag="$(python "${GITHUB_WORKSPACE}/.github/scripts/generated_suite_version.py" normalize-provided-tag --version-tag "$version_tag" --run-id "${GITHUB_RUN_ID}")"
           fi

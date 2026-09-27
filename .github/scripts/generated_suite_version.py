@@ -5,7 +5,7 @@ import re
 import sys
 
 
-RUN_ID_SUFFIX_PATTERN = re.compile(r"^.+-(\d+)$")
+RUN_ID_SUFFIX_PATTERN = re.compile(r"^.+[^-]-(\d+)$")
 
 
 def normalize_provided_tag(version_tag: str, run_id: str) -> str:

@@ -59,6 +59,10 @@ class GeneratedSuiteVersionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "version_tag must end with a hyphen-delimited numeric workflow run ID"):
             MODULE.extract_run_id("custom-suite")
 
+    def test_extract_run_id_rejects_leading_hyphen_form(self):
+        with self.assertRaisesRegex(ValueError, "version_tag must end with a hyphen-delimited numeric workflow run ID"):
+            MODULE.extract_run_id("-123456")
+
 
 if __name__ == "__main__":
     unittest.main()
