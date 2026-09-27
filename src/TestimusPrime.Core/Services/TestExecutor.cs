@@ -54,7 +54,7 @@ public sealed class TestExecutor
                     new RequestLog(testCase.Endpoint.HttpMethod, request.RequestUri!.ToString(), testCase.Headers, testCase.Body, sentAt),
                     new ResponseLog(
                         (int)response.StatusCode,
-                        response.Headers.Concat(response.Content.Headers).ToDictionary(static header => header.Key, static header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase),
+                        MergeHeaders(response.Headers, response.Content.Headers),
                         responseBody,
                         DateTimeOffset.UtcNow,
                         stopwatch.ElapsedMilliseconds,
@@ -77,6 +77,19 @@ public sealed class TestExecutor
         }
 
         return results;
+    }
+
+    private static Dictionary<string, string> MergeHeaders(HttpResponseHeaders responseHeaders, HttpContentHeaders contentHeaders)
+    {
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in responseHeaders.Concat(contentHeaders))
+        {
+            merged[header.Key] = merged.TryGetValue(header.Key, out var existingValue)
+                ? string.Join(",", new[] { existingValue, string.Join(",", header.Value) }.Where(static value => !string.IsNullOrWhiteSpace(value)))
+                : string.Join(",", header.Value);
+        }
+
+        return merged;
     }
 
     private static bool EvaluateResult(GeneratedTestCase testCase, int statusCode)

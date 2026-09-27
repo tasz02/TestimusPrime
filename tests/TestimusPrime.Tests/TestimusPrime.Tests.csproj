@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TestimusPrime.Core\TestimusPrime.Core.csproj" />
+    <ProjectReference Include="..\..\src\TestimusPrime.Runner\TestimusPrime.Runner.csproj" />
   </ItemGroup>
 
 </Project>

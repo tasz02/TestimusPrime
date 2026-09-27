@@ -35,7 +35,7 @@ public sealed class JsonReportStore
         }
 
         var reports = new List<TestRunReport>();
-        foreach (var file in Directory.EnumerateFiles(_outputDirectory, "*.json", SearchOption.TopDirectoryOnly).OrderByDescending(static path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (var file in Directory.EnumerateFiles(_outputDirectory, "*.json", SearchOption.TopDirectoryOnly))
         {
             await using var stream = File.OpenRead(file);
             var report = await JsonSerializer.DeserializeAsync<TestRunReport>(stream, SerializerOptions, cancellationToken);
@@ -45,7 +45,9 @@ public sealed class JsonReportStore
             }
         }
 
-        return reports;
+        return reports
+            .OrderByDescending(static report => report.CompletedAt)
+            .ToArray();
     }
 
     public async Task<TestRunReport?> LoadAsync(string runId, CancellationToken cancellationToken = default)
@@ -69,7 +71,6 @@ public sealed class JsonReportStore
         var failed = reports.Sum(static report => report.Summary.Failed);
         var averagePassRate = totalRuns == 0 ? 0 : Math.Round(reports.Average(static report => report.Summary.PassRate), 2);
         var recentRuns = reports
-            .OrderByDescending(static report => report.CompletedAt)
             .Take(10)
             .Select(static report => new RunSummaryCard(report.RunId, report.TriggerEvent, report.CompletedAt, report.Summary.Total, report.Summary.Passed, report.Summary.Failed, report.Summary.PassRate))
             .ToArray();
@@ -77,5 +78,26 @@ public sealed class JsonReportStore
         return new DashboardSummary(totalRuns, totalTests, passed, failed, averagePassRate, recentRuns);
     }
 
-    private string GetReportPath(string runId) => Path.Combine(_outputDirectory, $"{runId}.json");
+    private string GetReportPath(string runId)
+    {
+        var sanitizedRunId = SanitizeRunId(runId);
+        return Path.Combine(_outputDirectory, $"{sanitizedRunId}.json");
+    }
+
+    private static string SanitizeRunId(string runId)
+    {
+        if (string.IsNullOrWhiteSpace(runId))
+        {
+            throw new ArgumentException("Run ID is required.", nameof(runId));
+        }
+
+        if (runId.Contains(Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            || runId.Contains(Path.AltDirectorySeparatorChar, StringComparison.Ordinal)
+            || runId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            throw new ArgumentException("Run ID contains invalid path characters.", nameof(runId));
+        }
+
+        return runId;
+    }
 }

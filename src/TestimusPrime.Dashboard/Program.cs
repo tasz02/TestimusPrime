@@ -53,7 +53,33 @@ static string BuildDashboardHtml() => """
         const metrics = document.getElementById('metrics');
         const runs = document.getElementById('runs');
 
-        const renderMetric = (label, value) => `<div class="card"><strong>${label}</strong><div>${value}</div></div>`;
+        const appendMetric = (label, value) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            const strong = document.createElement('strong');
+            strong.textContent = label;
+            const content = document.createElement('div');
+            content.textContent = value;
+            card.append(strong, content);
+            metrics.appendChild(card);
+        };
+
+        const createCodeBlock = text => {
+            const code = document.createElement('code');
+            code.textContent = text;
+            return code;
+        };
+
+        const createCell = content => {
+            const cell = document.createElement('td');
+            if (typeof content === 'string') {
+                cell.textContent = content;
+            } else {
+                cell.appendChild(content);
+            }
+            return cell;
+        };
+
         const statusClass = passed => passed ? 'passed' : 'failed';
 
         async function load() {
@@ -65,34 +91,67 @@ static string BuildDashboardHtml() => """
             const summary = await summaryResponse.json();
             const reports = await runsResponse.json();
 
-            metrics.innerHTML = [
-                renderMetric('Runs', summary.totalRuns),
-                renderMetric('Tests', summary.totalTests),
-                renderMetric('Passed', summary.passedTests),
-                renderMetric('Failed', summary.failedTests),
-                renderMetric('Average pass rate', `${summary.averagePassRate}%`)
-            ].join('');
+            metrics.replaceChildren();
+            appendMetric('Runs', String(summary.totalRuns));
+            appendMetric('Tests', String(summary.totalTests));
+            appendMetric('Passed', String(summary.passedTests));
+            appendMetric('Failed', String(summary.failedTests));
+            appendMetric('Average pass rate', `${summary.averagePassRate}%`);
 
-            runs.innerHTML = reports.map(report => `
-                <details class="run">
-                    <summary>${report.runId} · ${report.triggerEvent} · <span class="${statusClass(report.summary.failed === 0)}">${report.summary.passRate}%</span></summary>
-                    <p>Completed: ${new Date(report.completedAt).toLocaleString()}</p>
-                    <p>Analyzed endpoints: ${report.analysis.endpoints.length} · Executed tests: ${report.summary.total}</p>
-                    <table>
-                        <thead>
-                            <tr><th>Test</th><th>Status</th><th>Request</th><th>Response</th></tr>
-                        </thead>
-                        <tbody>
-                            ${report.results.map(result => `
-                                <tr>
-                                    <td>${result.testName}<br /><small>${result.suites.join(', ')}</small></td>
-                                    <td class="${statusClass(result.passed)}">${result.outcome}</td>
-                                    <td><code>${result.request.method} ${result.request.url}\n${result.request.body ?? ''}</code></td>
-                                    <td><code>Status: ${result.response.statusCode ?? 'error'}\n${result.response.body ?? result.response.error ?? ''}</code></td>
-                                </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </details>`).join('');
+            runs.replaceChildren();
+            reports.forEach(report => {
+                const details = document.createElement('details');
+                details.className = 'run';
+
+                const summaryElement = document.createElement('summary');
+                const summaryStatus = document.createElement('span');
+                summaryStatus.className = statusClass(report.summary.failed === 0);
+                summaryStatus.textContent = `${report.summary.passRate}%`;
+                summaryElement.append(`${report.runId} · ${report.triggerEvent} · `, summaryStatus);
+
+                const completed = document.createElement('p');
+                completed.textContent = `Completed: ${new Date(report.completedAt).toLocaleString()}`;
+
+                const stats = document.createElement('p');
+                stats.textContent = `Analyzed endpoints: ${report.analysis.endpoints.length} · Executed tests: ${report.summary.total}`;
+
+                const table = document.createElement('table');
+                const headerRow = document.createElement('tr');
+                ['Test', 'Status', 'Request', 'Response'].forEach(label => {
+                    const header = document.createElement('th');
+                    header.textContent = label;
+                    headerRow.appendChild(header);
+                });
+                const thead = document.createElement('thead');
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                report.results.forEach(result => {
+                    const row = document.createElement('tr');
+
+                    const testCell = document.createElement('td');
+                    testCell.append(document.createTextNode(result.testName));
+                    testCell.appendChild(document.createElement('br'));
+                    const suites = document.createElement('small');
+                    suites.textContent = result.suites.join(', ');
+                    testCell.appendChild(suites);
+
+                    const statusCell = document.createElement('td');
+                    statusCell.className = statusClass(result.passed);
+                    statusCell.textContent = result.outcome;
+
+                    const requestText = `${result.request.method} ${result.request.url}\n${result.request.body ?? ''}`;
+                    const responseText = `Status: ${result.response.statusCode ?? 'error'}\n${result.response.body ?? result.response.error ?? ''}`;
+
+                    row.append(testCell, statusCell, createCell(createCodeBlock(requestText)), createCell(createCodeBlock(responseText)));
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                details.append(summaryElement, completed, stats, table);
+                runs.appendChild(details);
+            });
         }
 
         load();
