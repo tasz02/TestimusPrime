@@ -53,12 +53,13 @@ public sealed partial class TestCaseGenerator
 
         if (HasRouteTokens(endpoint.Route))
         {
+            var invalidRoute = ResolveInvalidRoute(endpoint.Route);
             yield return new GeneratedTestCase(
                 $"test:{endpoint.Id}:invalid-route",
-                $"{endpoint.HttpMethod} {ResolveInvalidRoute(endpoint.Route)}",
+                $"{endpoint.HttpMethod} {invalidRoute}",
                 endpoint,
                 [TestSuite.Regression],
-                ResolveInvalidRoute(endpoint.Route),
+                invalidRoute,
                 CreateHeaders(),
                 requiresBody ? "{}" : null,
                 InvalidRouteStatusCodes,
