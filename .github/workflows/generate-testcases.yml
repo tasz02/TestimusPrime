@@ -148,23 +148,34 @@ jobs:
               }
               return {suite_map.get(suite, str(suite)) for suite in (test_case.get("suites") or [])}
 
-          def endpoint_key(endpoint):
-              if not isinstance(endpoint, Mapping):
-                  return None
+          def empty_counts():
+              return {
+                  "Tests": 0,
+                  "Smoke": 0,
+                  "Regression": 0,
+                  "Positive": 0,
+                  "Negative": 0,
+                  "Unclassified": 0,
+              }
 
+          def endpoint_keys(endpoint):
+              if not isinstance(endpoint, Mapping):
+                  return []
+
+              keys = []
               endpoint_id = endpoint.get("id")
               if endpoint_id is not None:
-                  return f"id:{endpoint_id}"
+                  keys.append(f"id:{endpoint_id}")
 
               http_method = endpoint.get("httpMethod")
               route = endpoint.get("route")
               source_file = endpoint.get("sourceFile")
               source_line = endpoint.get("sourceLine")
 
-              if http_method is None or route is None:
-                  return None
+              if http_method is not None and route is not None:
+                  keys.append(f"fallback:{http_method}|{route}|{source_file}|{source_line}")
 
-              return f"fallback:{http_method}|{route}|{source_file}|{source_line}"
+              return keys
 
           suite_path = Path(os.environ["SUITE_FILE"])
           suite = None
@@ -200,26 +211,15 @@ jobs:
               analysis = suite.get("analysis") or {}
               endpoints = [endpoint for endpoint in (analysis.get("endpoints") or []) if isinstance(endpoint, Mapping)]
               test_cases = [test_case for test_case in (suite.get("testCases") or []) if isinstance(test_case, Mapping)]
-              overall_counts = {
-                  "Tests": 0,
-                  "Smoke": 0,
-                  "Regression": 0,
-                  "Positive": 0,
-                  "Negative": 0,
-                  "Unclassified": 0,
-              }
-              endpoint_counts = {
-                  key: {
-                      "Tests": 0,
-                      "Smoke": 0,
-                      "Regression": 0,
-                      "Positive": 0,
-                      "Negative": 0,
-                      "Unclassified": 0,
-                  }
-                  for key in (endpoint_key(endpoint) for endpoint in endpoints)
-                  if key is not None
-              }
+              overall_counts = empty_counts()
+              endpoint_rows = []
+              endpoint_count_lookup = {}
+
+              for endpoint in endpoints:
+                  counts = empty_counts()
+                  endpoint_rows.append((endpoint, counts))
+                  for key in endpoint_keys(endpoint):
+                      endpoint_count_lookup.setdefault(key, counts)
 
               for test_case in test_cases:
                   classification = classify_test_case(test_case)
@@ -231,14 +231,19 @@ jobs:
                   if "Regression" in suites:
                       overall_counts["Regression"] += 1
 
-                  key = endpoint_key(test_case.get("endpoint") or {})
-                  if key in endpoint_counts:
-                      endpoint_counts[key]["Tests"] += 1
-                      endpoint_counts[key][classification] += 1
+                  matched_counts = None
+                  for key in endpoint_keys(test_case.get("endpoint") or {}):
+                      matched_counts = endpoint_count_lookup.get(key)
+                      if matched_counts is not None:
+                          break
+
+                  if matched_counts is not None:
+                      matched_counts["Tests"] += 1
+                      matched_counts[classification] += 1
                       if "Smoke" in suites:
-                          endpoint_counts[key]["Smoke"] += 1
+                          matched_counts["Smoke"] += 1
                       if "Regression" in suites:
-                          endpoint_counts[key]["Regression"] += 1
+                          matched_counts["Regression"] += 1
 
               print("### Generated testcase counts")
               print()
@@ -265,18 +270,7 @@ jobs:
               print()
               print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative | Unclassified |")
               print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
-              for endpoint in endpoints:
-                  counts = endpoint_counts.get(
-                      endpoint_key(endpoint),
-                      {
-                          "Tests": 0,
-                          "Smoke": 0,
-                          "Regression": 0,
-                          "Positive": 0,
-                          "Negative": 0,
-                          "Unclassified": 0,
-                      },
-                  )
+              for endpoint, counts in endpoint_rows:
                   source_file = endpoint.get("sourceFile") or "(unknown source)"
                   source_line = endpoint.get("sourceLine")
                   source = f"{source_file}:{source_line}" if source_line is not None else source_file
