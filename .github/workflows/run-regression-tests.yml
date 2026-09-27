@@ -47,6 +47,8 @@ jobs:
           exit 1
 
       - name: Run regression suite
+        id: run_regression_suite
+        continue-on-error: true
         run: >
           dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
           --repo=/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi
@@ -70,3 +72,39 @@ jobs:
           if [ -f /tmp/sample-api.pid ]; then
             kill "$(cat /tmp/sample-api.pid)" || true
           fi
+
+      - name: Fail workflow when regression tests fail
+        if: always()
+        env:
+          REPORT_DIRECTORY: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression
+          TEST_STEP_OUTCOME: ${{ steps.run_regression_suite.outcome }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          report_directory = pathlib.Path(os.environ["REPORT_DIRECTORY"])
+          report_files = sorted(report_directory.glob("*.json"))
+          if not report_files:
+              print(f"No test report files were found in {report_directory}.")
+              sys.exit(1)
+
+          failed_tests = 0
+          for report_file in report_files:
+              with report_file.open() as handle:
+                  report = json.load(handle)
+              failed_tests += int(report.get("summary", {}).get("failed", 0))
+
+          test_step_outcome = os.environ["TEST_STEP_OUTCOME"]
+          if test_step_outcome != "success":
+              print(f"Regression suite execution step finished with outcome: {test_step_outcome}.")
+              sys.exit(1)
+
+          if failed_tests > 0:
+              print(f"Regression suite execution reported {failed_tests} failed test(s).")
+              sys.exit(1)
+
+          print("Regression suite execution completed with no failed tests.")
+          PY
