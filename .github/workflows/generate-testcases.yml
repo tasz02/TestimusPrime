@@ -210,7 +210,9 @@ jobs:
                   regression_count = suite_counts(endpoint_cases, "Regression")
                   endpoint_positive_count = sum(1 for test_case in endpoint_cases if not is_negative(test_case))
                   endpoint_negative_count = len(endpoint_cases) - endpoint_positive_count
-                  source = f"{endpoint.get('sourceFile')}:{endpoint.get('sourceLine')}"
+                  source_file = endpoint.get("sourceFile") or "(unknown source)"
+                  source_line = endpoint.get("sourceLine")
+                  source = f"{source_file}:{source_line}" if source_line is not None else source_file
                   print(
                       f"| {escape_cell(endpoint.get('httpMethod'))} | "
                       f"`{escape_cell(endpoint.get('route'))}` | "
