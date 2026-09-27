@@ -97,25 +97,120 @@ jobs:
 
       - name: Summarize generated testcase suite
         if: always()
+        env:
+          API_REPOSITORY: ${{ github.repository }}
+          API_REPOSITORY_PATH: ${{ inputs.target_repository_path }}
+          VERSION_TAG: ${{ steps.paths.outputs.version_tag }}
+          ARTIFACT_NAME: ${{ steps.paths.outputs.artifact_name }}
+          ARTIFACT_ID: ${{ steps.upload_artifact.outputs['artifact-id'] }}
+          ARTIFACT_URL: ${{ steps.upload_artifact.outputs['artifact-url'] }}
+          ARTIFACTS_FOLDER: ${{ steps.paths.outputs.output_dir }}
+          SUITE_FILE: ${{ steps.paths.outputs.suite_file }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
-          cat <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
-          ## Generated testcase suite summary
+          python <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          import os
+          from pathlib import Path
 
-          | Field | Value |
-          | --- | --- |
-          | API repository | `${{ github.repository }}` |
-          | API repository path | `${{ inputs.target_repository_path }}` |
-          | Version | `${{ steps.paths.outputs.version_tag }}` |
-          | Artifact name | `${{ steps.paths.outputs.artifact_name }}` |
-          | Artifact ID | `${{ steps.upload_artifact.outputs['artifact-id'] }}` |
-          | Artifact URL | ${{ steps.upload_artifact.outputs['artifact-url'] }} |
-          | Artifacts folder | `${{ steps.paths.outputs.output_dir }}` |
-          | Generated suite file | `${{ steps.paths.outputs.suite_file }}` |
-          | Workflow run ID | `${{ github.run_id }}` |
+          def escape_cell(value):
+              text = "" if value is None else str(value)
+              return text.replace("|", "\\|").replace("\n", "<br>")
 
-          ### Inputs for `Run generated testcases`
+          def is_negative(test_case):
+              status_codes = test_case.get("expectedStatusCodes") or []
+              return bool(status_codes) and all(isinstance(code, int) and code >= 400 for code in status_codes)
 
-          - `test_suite_version_tag`: `${{ steps.paths.outputs.version_tag }}`
+          def suite_counts(test_cases, suite_name):
+              return sum(1 for test_case in test_cases if suite_name in (test_case.get("suites") or []))
 
-          Generated suite version tags always end with `-<workflow-run-id>`, so `test_suite_version_tag` is enough for the run workflow.
-          EOF
+          suite_path = Path(os.environ["SUITE_FILE"])
+          suite = None
+          suite_error = None
+
+          if suite_path.is_file():
+              try:
+                  suite = json.loads(suite_path.read_text(encoding="utf-8"))
+              except Exception as exc:  # summary generation must remain best-effort
+                  suite_error = f"Unable to read generated suite JSON: {exc}"
+          else:
+              suite_error = f"Generated suite file not found at {suite_path}"
+
+          print("## Generated testcase suite summary")
+          print()
+          print("| Field | Value |")
+          print("| --- | --- |")
+          print(f"| API repository | `{escape_cell(os.environ['API_REPOSITORY'])}` |")
+          print(f"| API repository path | `{escape_cell(os.environ['API_REPOSITORY_PATH'])}` |")
+          print(f"| Version | `{escape_cell(os.environ['VERSION_TAG'])}` |")
+          print(f"| Artifact name | `{escape_cell(os.environ['ARTIFACT_NAME'])}` |")
+          print(f"| Artifact ID | `{escape_cell(os.environ['ARTIFACT_ID'])}` |")
+          print(f"| Artifact URL | {escape_cell(os.environ['ARTIFACT_URL'])} |")
+          print(f"| Artifacts folder | `{escape_cell(os.environ['ARTIFACTS_FOLDER'])}` |")
+          print(f"| Generated suite file | `{escape_cell(os.environ['SUITE_FILE'])}` |")
+          print(f"| Workflow run ID | `{escape_cell(os.environ['WORKFLOW_RUN_ID'])}` |")
+          print()
+
+          if suite:
+              analysis = suite.get("analysis") or {}
+              endpoints = analysis.get("endpoints") or []
+              test_cases = suite.get("testCases") or []
+              positive_count = sum(1 for test_case in test_cases if not is_negative(test_case))
+              negative_count = len(test_cases) - positive_count
+              endpoint_test_cases = {}
+
+              for test_case in test_cases:
+                  endpoint_id = ((test_case.get("endpoint") or {}).get("id"))
+                  endpoint_test_cases.setdefault(endpoint_id, []).append(test_case)
+
+              print("### Generated testcase counts")
+              print()
+              print("| Category | Count |")
+              print("| --- | ---: |")
+              print(f"| Endpoints detected | {len(endpoints)} |")
+              print(f"| Total testcases | {len(test_cases)} |")
+              print(f"| Smoke | {suite_counts(test_cases, 'Smoke')} |")
+              print(f"| Regression | {suite_counts(test_cases, 'Regression')} |")
+              print(f"| Positive | {positive_count} |")
+              print(f"| Negative | {negative_count} |")
+              print()
+
+              notes = analysis.get("notes") or []
+              if notes:
+                  print("### Analysis notes")
+                  print()
+                  for note in notes:
+                      print(f"- {escape_cell(note)}")
+                  print()
+
+              print(f"### Detected endpoints ({len(endpoints)})")
+              print()
+              print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative |")
+              print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |")
+              for endpoint in endpoints:
+                  endpoint_cases = endpoint_test_cases.get(endpoint.get("id"), [])
+                  smoke_count = suite_counts(endpoint_cases, "Smoke")
+                  regression_count = suite_counts(endpoint_cases, "Regression")
+                  endpoint_positive_count = sum(1 for test_case in endpoint_cases if not is_negative(test_case))
+                  endpoint_negative_count = len(endpoint_cases) - endpoint_positive_count
+                  source = f"{endpoint.get('sourceFile')}:{endpoint.get('sourceLine')}"
+                  print(
+                      f"| {escape_cell(endpoint.get('httpMethod'))} | "
+                      f"`{escape_cell(endpoint.get('route'))}` | "
+                      f"`{escape_cell(source)}` | "
+                      f"{len(endpoint_cases)} | {smoke_count} | {regression_count} | "
+                      f"{endpoint_positive_count} | {endpoint_negative_count} |"
+                  )
+              print()
+          else:
+              print("### Generated testcase details")
+              print()
+              print(f"_Unavailable: {escape_cell(suite_error)}_")
+              print()
+
+          print("### Inputs for `Run generated testcases`")
+          print()
+          print(f"- `test_suite_version_tag`: `{escape_cell(os.environ['VERSION_TAG'])}`")
+          print()
+          print("Generated suite version tags always end with `-<workflow-run-id>`, so `test_suite_version_tag` is enough for the run workflow.")
+          PY
