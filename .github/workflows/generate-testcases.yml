@@ -111,6 +111,7 @@ jobs:
           python <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
           import os
+          from collections.abc import Mapping
           from pathlib import Path
 
           def escape_cell(value):
@@ -157,6 +158,9 @@ jobs:
           if suite_path.is_file():
               try:
                   suite = json.loads(suite_path.read_text(encoding="utf-8"))
+                  if not isinstance(suite, Mapping):
+                      suite_error = f"Generated suite JSON must be an object, found {type(suite).__name__}."
+                      suite = None
               except Exception as exc:  # summary generation must remain best-effort
                   suite_error = f"Unable to read generated suite JSON: {exc}"
           else:
