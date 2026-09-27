@@ -54,11 +54,13 @@ jobs:
 
           output_dir="${GITHUB_WORKSPACE}/artifacts/generated-testcases/${version_tag}"
           suite_file="${output_dir}/${version_tag}.json"
+          artifact_name="generated-testcases-${version_tag}"
 
           echo "target_path=$target_path" >> "$GITHUB_OUTPUT"
           echo "version_tag=$version_tag" >> "$GITHUB_OUTPUT"
           echo "output_dir=$output_dir" >> "$GITHUB_OUTPUT"
           echo "suite_file=$suite_file" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
 
       - name: Generate versioned testcases
         run: >
@@ -71,7 +73,7 @@ jobs:
       - name: Upload generated testcase artifact
         uses: actions/upload-artifact@v7
         with:
-          name: generated-testcases-${{ steps.paths.outputs.version_tag }}
+          name: ${{ steps.paths.outputs.artifact_name }}
           path: ${{ steps.paths.outputs.output_dir }}
 
       - name: Create git tag for generated testcases
@@ -88,3 +90,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$tag_name"
           git push origin "refs/tags/$tag_name"
+
+      - name: Summarize generated testcase suite
+        if: always()
+        run: |
+          {
+            echo "## Generated testcase suite summary"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| API repository | \`${{ github.repository }}\` |"
+            echo "| API repository path | \`${{ inputs.target_repository_path }}\` |"
+            echo "| Version | \`${{ steps.paths.outputs.version_tag }}\` |"
+            echo "| Workflow run ID | \`${{ github.run_id }}\` |"
+            echo "| Artifact name | \`${{ steps.paths.outputs.artifact_name }}\` |"
+            echo "| Artifacts folder | \`${{ steps.paths.outputs.output_dir }}\` |"
+            echo "| Generated suite file | \`${{ steps.paths.outputs.suite_file }}\` |"
+            echo
+            echo "### Inputs for \`Run generated testcases\`"
+            echo
+            echo "- \`generation_run_id\`: \`${{ github.run_id }}\`"
+            echo "- \`test_suite_version_tag\`: \`${{ steps.paths.outputs.version_tag }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
