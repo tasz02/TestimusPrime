@@ -51,6 +51,8 @@ jobs:
           version_tag="${{ inputs.test_suite_version_tag }}"
           if [ -z "$version_tag" ]; then
             version_tag="testcases-v$(date -u +%Y%m%d%H%M%S%3N)-${GITHUB_RUN_ID}"
+          elif [[ "$version_tag" != *"-${GITHUB_RUN_ID}" ]]; then
+            version_tag="${version_tag}-${GITHUB_RUN_ID}"
           fi
 
           output_dir="${GITHUB_WORKSPACE}/artifacts/generated-testcases/${version_tag}"
@@ -111,8 +113,6 @@ jobs:
             echo "### Inputs for \`Run generated testcases\`"
             echo
             echo "- \`test_suite_version_tag\`: \`${{ steps.paths.outputs.version_tag }}\`"
-            echo "- \`generation_run_id\` (optional): \`${{ github.run_id }}\`"
             echo
-            echo "Default version tags already embed the generating workflow run ID, so \`test_suite_version_tag\` is usually enough."
-            echo "If you supplied a custom version tag without that run ID suffix, also pass \`generation_run_id\`."
+            echo "Generated suite version tags always end with the generating workflow run ID, so \`test_suite_version_tag\` is enough for the run workflow."
           } >> "$GITHUB_STEP_SUMMARY"

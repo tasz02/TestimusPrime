@@ -3,10 +3,6 @@ name: Run generated testcases
 on:
   workflow_dispatch:
     inputs:
-      generation_run_id:
-        description: Optional workflow run ID override for custom version tags that do not end with the generating run ID
-        required: false
-        default: ""
       test_suite_version_tag:
         description: Version tag of the generated testcase suite to execute
         required: true
@@ -38,7 +34,6 @@ jobs:
       - name: Resolve generated testcase artifact
         id: resolve_suite
         env:
-          GENERATION_RUN_ID: ${{ inputs.generation_run_id }}
           VERSION_TAG: ${{ inputs.test_suite_version_tag }}
         run: |
           python <<'PY'
@@ -46,24 +41,16 @@ jobs:
           import re
           import sys
 
-          generation_run_id = os.environ["GENERATION_RUN_ID"].strip()
           version_tag = os.environ["VERSION_TAG"]
           artifact_name = f"generated-testcases-{version_tag}"
 
-          if generation_run_id:
-              if not generation_run_id.isdigit():
-                  print("The optional generation_run_id input must be a numeric workflow run ID.")
-                  sys.exit(1)
-              run_id = generation_run_id
-          else:
-              match = re.fullmatch(r"testcases-v\d{17}-(\d+)", version_tag)
-              if not match:
-                  print(
-                      "The test_suite_version_tag does not end with an embedded workflow run ID. "
-                      "Provide generation_run_id when using a custom version tag."
-                  )
-                  sys.exit(1)
-              run_id = match.group(1)
+          match = re.fullmatch(r".+-(\d+)", version_tag)
+          if not match:
+              print(
+                  "The test_suite_version_tag must end with the generating workflow run ID."
+              )
+              sys.exit(1)
+          run_id = match.group(1)
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"artifact_name={artifact_name}\n")
