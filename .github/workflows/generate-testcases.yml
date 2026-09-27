@@ -148,9 +148,6 @@ jobs:
               }
               return {suite_map.get(suite, str(suite)) for suite in (test_case.get("suites") or [])}
 
-          def suite_counts(test_cases, suite_name):
-              return sum(1 for test_case in test_cases if suite_name in normalized_suites(test_case))
-
           def endpoint_key(endpoint):
               if not isinstance(endpoint, Mapping):
                   return None
@@ -203,27 +200,57 @@ jobs:
               analysis = suite.get("analysis") or {}
               endpoints = [endpoint for endpoint in (analysis.get("endpoints") or []) if isinstance(endpoint, Mapping)]
               test_cases = [test_case for test_case in (suite.get("testCases") or []) if isinstance(test_case, Mapping)]
-              positive_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Positive")
-              negative_count = sum(1 for test_case in test_cases if classify_test_case(test_case) == "Negative")
-              unclassified_count = len(test_cases) - positive_count - negative_count
-              endpoint_test_cases = {}
+              overall_counts = {
+                  "Tests": 0,
+                  "Smoke": 0,
+                  "Regression": 0,
+                  "Positive": 0,
+                  "Negative": 0,
+                  "Unclassified": 0,
+              }
+              endpoint_counts = {
+                  key: {
+                      "Tests": 0,
+                      "Smoke": 0,
+                      "Regression": 0,
+                      "Positive": 0,
+                      "Negative": 0,
+                      "Unclassified": 0,
+                  }
+                  for key in (endpoint_key(endpoint) for endpoint in endpoints)
+                  if key is not None
+              }
 
               for test_case in test_cases:
+                  classification = classify_test_case(test_case)
+                  suites = normalized_suites(test_case)
+                  overall_counts["Tests"] += 1
+                  overall_counts[classification] += 1
+                  if "Smoke" in suites:
+                      overall_counts["Smoke"] += 1
+                  if "Regression" in suites:
+                      overall_counts["Regression"] += 1
+
                   key = endpoint_key(test_case.get("endpoint") or {})
-                  if key is not None:
-                      endpoint_test_cases.setdefault(key, []).append(test_case)
+                  if key in endpoint_counts:
+                      endpoint_counts[key]["Tests"] += 1
+                      endpoint_counts[key][classification] += 1
+                      if "Smoke" in suites:
+                          endpoint_counts[key]["Smoke"] += 1
+                      if "Regression" in suites:
+                          endpoint_counts[key]["Regression"] += 1
 
               print("### Generated testcase counts")
               print()
               print("| Category | Count |")
               print("| --- | ---: |")
               print(f"| Endpoints detected | {len(endpoints)} |")
-              print(f"| Total testcases | {len(test_cases)} |")
-              print(f"| Smoke | {suite_counts(test_cases, 'Smoke')} |")
-              print(f"| Regression | {suite_counts(test_cases, 'Regression')} |")
-              print(f"| Positive | {positive_count} |")
-              print(f"| Negative | {negative_count} |")
-              print(f"| Unclassified | {unclassified_count} |")
+              print(f"| Total testcases | {overall_counts['Tests']} |")
+              print(f"| Smoke | {overall_counts['Smoke']} |")
+              print(f"| Regression | {overall_counts['Regression']} |")
+              print(f"| Positive | {overall_counts['Positive']} |")
+              print(f"| Negative | {overall_counts['Negative']} |")
+              print(f"| Unclassified | {overall_counts['Unclassified']} |")
               print()
 
               notes = analysis.get("notes") or []
@@ -239,12 +266,17 @@ jobs:
               print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative | Unclassified |")
               print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
               for endpoint in endpoints:
-                  endpoint_cases = endpoint_test_cases.get(endpoint_key(endpoint), [])
-                  smoke_count = suite_counts(endpoint_cases, "Smoke")
-                  regression_count = suite_counts(endpoint_cases, "Regression")
-                  endpoint_positive_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Positive")
-                  endpoint_negative_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Negative")
-                  endpoint_unclassified_count = len(endpoint_cases) - endpoint_positive_count - endpoint_negative_count
+                  counts = endpoint_counts.get(
+                      endpoint_key(endpoint),
+                      {
+                          "Tests": 0,
+                          "Smoke": 0,
+                          "Regression": 0,
+                          "Positive": 0,
+                          "Negative": 0,
+                          "Unclassified": 0,
+                      },
+                  )
                   source_file = endpoint.get("sourceFile") or "(unknown source)"
                   source_line = endpoint.get("sourceLine")
                   source = f"{source_file}:{source_line}" if source_line is not None else source_file
@@ -252,8 +284,8 @@ jobs:
                       f"| {escape_cell(endpoint.get('httpMethod'))} | "
                       f"`{escape_cell(endpoint.get('route'))}` | "
                       f"`{escape_cell(source)}` | "
-                      f"{len(endpoint_cases)} | {smoke_count} | {regression_count} | "
-                      f"{endpoint_positive_count} | {endpoint_negative_count} | {endpoint_unclassified_count} |"
+                      f"{counts['Tests']} | {counts['Smoke']} | {counts['Regression']} | "
+                      f"{counts['Positive']} | {counts['Negative']} | {counts['Unclassified']} |"
                   )
               print()
           else:
