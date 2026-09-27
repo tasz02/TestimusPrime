@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TestimusPrime.Core/TestimusPrime.Core.csproj" />
+    <Project Path="src/TestimusPrime.Dashboard/TestimusPrime.Dashboard.csproj" />
+    <Project Path="src/TestimusPrime.Runner/TestimusPrime.Runner.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TestimusPrime.Tests/TestimusPrime.Tests.csproj" />
+  </Folder>
+</Solution>
