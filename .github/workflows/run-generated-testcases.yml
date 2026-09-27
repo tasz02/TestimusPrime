@@ -44,7 +44,7 @@ jobs:
           version_tag = os.environ["VERSION_TAG"]
           artifact_name = f"generated-testcases-{version_tag}"
 
-          match = re.fullmatch(r".+-(\d+)", version_tag)
+          match = re.fullmatch(r"(?:.+-)?(\d+)", version_tag)
           if not match:
               print(
                   "The test_suite_version_tag must end with the generating workflow run ID."
