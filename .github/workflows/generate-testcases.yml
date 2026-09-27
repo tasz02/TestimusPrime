@@ -151,6 +151,24 @@ jobs:
           def suite_counts(test_cases, suite_name):
               return sum(1 for test_case in test_cases if suite_name in normalized_suites(test_case))
 
+          def endpoint_key(endpoint):
+              if not isinstance(endpoint, Mapping):
+                  return None
+
+              endpoint_id = endpoint.get("id")
+              if endpoint_id is not None:
+                  return f"id:{endpoint_id}"
+
+              http_method = endpoint.get("httpMethod")
+              route = endpoint.get("route")
+              source_file = endpoint.get("sourceFile")
+              source_line = endpoint.get("sourceLine")
+
+              if http_method is None or route is None:
+                  return None
+
+              return f"fallback:{http_method}|{route}|{source_file}|{source_line}"
+
           suite_path = Path(os.environ["SUITE_FILE"])
           suite = None
           suite_error = None
@@ -191,9 +209,9 @@ jobs:
               endpoint_test_cases = {}
 
               for test_case in test_cases:
-                  endpoint_id = ((test_case.get("endpoint") or {}).get("id"))
-                  if endpoint_id is not None:
-                      endpoint_test_cases.setdefault(endpoint_id, []).append(test_case)
+                  key = endpoint_key(test_case.get("endpoint") or {})
+                  if key is not None:
+                      endpoint_test_cases.setdefault(key, []).append(test_case)
 
               print("### Generated testcase counts")
               print()
@@ -221,8 +239,7 @@ jobs:
               print("| Method | Route | Source | Tests | Smoke | Regression | Positive | Negative | Unclassified |")
               print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
               for endpoint in endpoints:
-                  endpoint_id = endpoint.get("id")
-                  endpoint_cases = endpoint_test_cases.get(endpoint_id, []) if endpoint_id is not None else []
+                  endpoint_cases = endpoint_test_cases.get(endpoint_key(endpoint), [])
                   smoke_count = suite_counts(endpoint_cases, "Smoke")
                   regression_count = suite_counts(endpoint_cases, "Regression")
                   endpoint_positive_count = sum(1 for test_case in endpoint_cases if classify_test_case(test_case) == "Positive")
