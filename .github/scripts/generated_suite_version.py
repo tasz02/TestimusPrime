@@ -12,10 +12,16 @@ def normalize_provided_tag(version_tag: str, run_id: str) -> str:
     if not run_id.isdigit():
         raise ValueError("run_id must be numeric")
 
-    if version_tag.endswith(f"-{run_id}"):
-        return version_tag
+    normalized_tag = version_tag.rstrip("-")
+    if not normalized_tag:
+        raise ValueError("version_tag must include a non-empty prefix")
 
-    return f"{version_tag}-{run_id}"
+    if normalized_tag.endswith(f"-{run_id}"):
+        normalized_tag = normalized_tag[: -(len(run_id) + 1)].rstrip("-")
+        if not normalized_tag:
+            raise ValueError("version_tag must include a non-empty prefix")
+
+    return f"{normalized_tag}-{run_id}"
 
 
 def extract_run_id(version_tag: str) -> str:
