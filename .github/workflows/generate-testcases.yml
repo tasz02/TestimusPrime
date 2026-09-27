@@ -74,6 +74,7 @@ jobs:
           --version-tag=${{ steps.paths.outputs.version_tag }}
 
       - name: Upload generated testcase artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.paths.outputs.artifact_name }}
@@ -97,22 +98,24 @@ jobs:
       - name: Summarize generated testcase suite
         if: always()
         run: |
-          {
-            echo "## Generated testcase suite summary"
-            echo
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| API repository | \`${{ github.repository }}\` |"
-            echo "| API repository path | \`${{ inputs.target_repository_path }}\` |"
-            echo "| Version | \`${{ steps.paths.outputs.version_tag }}\` |"
-            echo "| Artifact name | \`${{ steps.paths.outputs.artifact_name }}\` |"
-            echo "| Artifacts folder | \`${{ steps.paths.outputs.output_dir }}\` |"
-            echo "| Generated suite file | \`${{ steps.paths.outputs.suite_file }}\` |"
-            echo "| Workflow run ID | \`${{ github.run_id }}\` |"
-            echo
-            echo "### Inputs for \`Run generated testcases\`"
-            echo
-            echo "- \`test_suite_version_tag\`: \`${{ steps.paths.outputs.version_tag }}\`"
-            echo
-            echo "Generated suite version tags always end with \`-<workflow-run-id>\`, so \`test_suite_version_tag\` is enough for the run workflow."
-          } >> "$GITHUB_STEP_SUMMARY"
+          cat <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          ## Generated testcase suite summary
+
+          | Field | Value |
+          | --- | --- |
+          | API repository | `${{ github.repository }}` |
+          | API repository path | `${{ inputs.target_repository_path }}` |
+          | Version | `${{ steps.paths.outputs.version_tag }}` |
+          | Artifact name | `${{ steps.paths.outputs.artifact_name }}` |
+          | Artifact ID | `${{ steps.upload_artifact.outputs['artifact-id'] }}` |
+          | Artifact URL | ${{ steps.upload_artifact.outputs['artifact-url'] }} |
+          | Artifacts folder | `${{ steps.paths.outputs.output_dir }}` |
+          | Generated suite file | `${{ steps.paths.outputs.suite_file }}` |
+          | Workflow run ID | `${{ github.run_id }}` |
+
+          ### Inputs for `Run generated testcases`
+
+          - `test_suite_version_tag`: `${{ steps.paths.outputs.version_tag }}`
+
+          Generated suite version tags always end with `-<workflow-run-id>`, so `test_suite_version_tag` is enough for the run workflow.
+          EOF
