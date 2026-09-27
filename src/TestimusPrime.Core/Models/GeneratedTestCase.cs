@@ -9,5 +9,5 @@ public sealed record GeneratedTestCase(
     IReadOnlyDictionary<string, string> Headers,
     string? Body,
     IReadOnlyList<int> ExpectedStatusCodes,
-    bool AllowAnyNonServerError,
+    bool AllowAnySuccessfulStatus,
     string Rationale);

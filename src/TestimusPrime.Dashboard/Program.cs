@@ -34,9 +34,10 @@ static string BuildDashboardHtml() => """
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }
         .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .card, details { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
+        .card, details, .error { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
         h1, h2 { margin-top: 0; }
         .run { margin-bottom: 1rem; }
+        .error { border-color: #ef4444; color: #fecaca; margin-bottom: 1rem; }
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #334155; vertical-align: top; }
         .passed { color: #4ade80; }
@@ -46,10 +47,12 @@ static string BuildDashboardHtml() => """
 </head>
 <body>
     <h1>TestimusPrime Dashboard</h1>
+    <div id="error"></div>
     <div id="metrics" class="metrics"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
     <script>
+        const errorBox = document.getElementById('error');
         const metrics = document.getElementById('metrics');
         const runs = document.getElementById('runs');
 
@@ -82,76 +85,90 @@ static string BuildDashboardHtml() => """
 
         const statusClass = passed => passed ? 'passed' : 'failed';
 
+        async function getJson(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`${url} returned ${response.status}`);
+            }
+
+            return response.json();
+        }
+
         async function load() {
-            const [summaryResponse, runsResponse] = await Promise.all([
-                fetch('/api/summary'),
-                fetch('/api/runs')
-            ]);
+            try {
+                const [summary, reports] = await Promise.all([
+                    getJson('/api/summary'),
+                    getJson('/api/runs')
+                ]);
 
-            const summary = await summaryResponse.json();
-            const reports = await runsResponse.json();
+                errorBox.replaceChildren();
+                metrics.replaceChildren();
+                appendMetric('Runs', String(summary.totalRuns));
+                appendMetric('Tests', String(summary.totalTests));
+                appendMetric('Passed', String(summary.passedTests));
+                appendMetric('Failed', String(summary.failedTests));
+                appendMetric('Average pass rate', `${summary.averagePassRate}%`);
 
-            metrics.replaceChildren();
-            appendMetric('Runs', String(summary.totalRuns));
-            appendMetric('Tests', String(summary.totalTests));
-            appendMetric('Passed', String(summary.passedTests));
-            appendMetric('Failed', String(summary.failedTests));
-            appendMetric('Average pass rate', `${summary.averagePassRate}%`);
+                runs.replaceChildren();
+                reports.forEach(report => {
+                    const details = document.createElement('details');
+                    details.className = 'run';
 
-            runs.replaceChildren();
-            reports.forEach(report => {
-                const details = document.createElement('details');
-                details.className = 'run';
+                    const summaryElement = document.createElement('summary');
+                    const summaryStatus = document.createElement('span');
+                    summaryStatus.className = statusClass(report.summary.failed === 0);
+                    summaryStatus.textContent = `${report.summary.passRate}%`;
+                    summaryElement.append(`${report.runId} · ${report.triggerEvent} · `, summaryStatus);
 
-                const summaryElement = document.createElement('summary');
-                const summaryStatus = document.createElement('span');
-                summaryStatus.className = statusClass(report.summary.failed === 0);
-                summaryStatus.textContent = `${report.summary.passRate}%`;
-                summaryElement.append(`${report.runId} · ${report.triggerEvent} · `, summaryStatus);
+                    const completed = document.createElement('p');
+                    completed.textContent = `Completed: ${new Date(report.completedAt).toLocaleString()}`;
 
-                const completed = document.createElement('p');
-                completed.textContent = `Completed: ${new Date(report.completedAt).toLocaleString()}`;
+                    const stats = document.createElement('p');
+                    stats.textContent = `Analyzed endpoints: ${report.analysis.endpoints.length} · Executed tests: ${report.summary.total}`;
 
-                const stats = document.createElement('p');
-                stats.textContent = `Analyzed endpoints: ${report.analysis.endpoints.length} · Executed tests: ${report.summary.total}`;
+                    const table = document.createElement('table');
+                    const headerRow = document.createElement('tr');
+                    ['Test', 'Status', 'Request', 'Response'].forEach(label => {
+                        const header = document.createElement('th');
+                        header.textContent = label;
+                        headerRow.appendChild(header);
+                    });
+                    const thead = document.createElement('thead');
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
 
-                const table = document.createElement('table');
-                const headerRow = document.createElement('tr');
-                ['Test', 'Status', 'Request', 'Response'].forEach(label => {
-                    const header = document.createElement('th');
-                    header.textContent = label;
-                    headerRow.appendChild(header);
+                    const tbody = document.createElement('tbody');
+                    report.results.forEach(result => {
+                        const row = document.createElement('tr');
+
+                        const testCell = document.createElement('td');
+                        testCell.append(document.createTextNode(result.testName));
+                        testCell.appendChild(document.createElement('br'));
+                        const suites = document.createElement('small');
+                        suites.textContent = result.suites.join(', ');
+                        testCell.appendChild(suites);
+
+                        const statusCell = document.createElement('td');
+                        statusCell.className = statusClass(result.passed);
+                        statusCell.textContent = result.outcome;
+
+                        const requestText = `${result.request.method} ${result.request.url}\n${result.request.body ?? ''}`;
+                        const responseText = `Status: ${result.response.statusCode ?? 'error'}\n${result.response.body ?? result.response.error ?? ''}`;
+
+                        row.append(testCell, statusCell, createCell(createCodeBlock(requestText)), createCell(createCodeBlock(responseText)));
+                        tbody.appendChild(row);
+                    });
+
+                    table.appendChild(tbody);
+                    details.append(summaryElement, completed, stats, table);
+                    runs.appendChild(details);
                 });
-                const thead = document.createElement('thead');
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
-
-                const tbody = document.createElement('tbody');
-                report.results.forEach(result => {
-                    const row = document.createElement('tr');
-
-                    const testCell = document.createElement('td');
-                    testCell.append(document.createTextNode(result.testName));
-                    testCell.appendChild(document.createElement('br'));
-                    const suites = document.createElement('small');
-                    suites.textContent = result.suites.join(', ');
-                    testCell.appendChild(suites);
-
-                    const statusCell = document.createElement('td');
-                    statusCell.className = statusClass(result.passed);
-                    statusCell.textContent = result.outcome;
-
-                    const requestText = `${result.request.method} ${result.request.url}\n${result.request.body ?? ''}`;
-                    const responseText = `Status: ${result.response.statusCode ?? 'error'}\n${result.response.body ?? result.response.error ?? ''}`;
-
-                    row.append(testCell, statusCell, createCell(createCodeBlock(requestText)), createCell(createCodeBlock(responseText)));
-                    tbody.appendChild(row);
-                });
-
-                table.appendChild(tbody);
-                details.append(summaryElement, completed, stats, table);
-                runs.appendChild(details);
-            });
+            } catch (error) {
+                metrics.replaceChildren();
+                runs.replaceChildren();
+                errorBox.className = 'error';
+                errorBox.textContent = error instanceof Error ? error.message : 'Dashboard failed to load.';
+            }
         }
 
         load();

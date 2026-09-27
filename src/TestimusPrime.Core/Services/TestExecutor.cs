@@ -94,15 +94,15 @@ public sealed class TestExecutor
 
     private static bool EvaluateResult(GeneratedTestCase testCase, int statusCode)
     {
-        if (testCase.AllowAnyNonServerError)
+        if (testCase.AllowAnySuccessfulStatus)
         {
-            return statusCode < 500;
+            return statusCode is >= 200 and < 300;
         }
 
         return testCase.ExpectedStatusCodes.Contains(statusCode);
     }
 
-    private static string DescribeExpected(GeneratedTestCase testCase) => testCase.AllowAnyNonServerError
-        ? "a non-5xx response"
+    private static string DescribeExpected(GeneratedTestCase testCase) => testCase.AllowAnySuccessfulStatus
+        ? "a 2xx response"
         : $"one of [{string.Join(", ", testCase.ExpectedStatusCodes)}]";
 }

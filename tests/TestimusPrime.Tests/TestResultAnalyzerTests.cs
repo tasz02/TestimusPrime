@@ -42,4 +42,27 @@ public sealed class TestResultAnalyzerTests
         summary.FailingTests.Should().ContainSingle(test => test == "POST /orders");
         summary.SlowestTests.First().Should().StartWith("POST /orders");
     }
+
+    [Fact]
+    public void Analyze_ReturnsTopFiveSlowestTestsInDescendingOrder()
+    {
+        var analyzer = new TestResultAnalyzer();
+        var results = Enumerable.Range(1, 7)
+            .Select(index => new TestExecutionResult(
+                index.ToString(),
+                $"Test {index}",
+                [TestSuite.Regression],
+                true,
+                200,
+                "Passed",
+                null,
+                new RequestLog("GET", $"https://example.test/{index}", new Dictionary<string, string>(), null, DateTimeOffset.UtcNow),
+                new ResponseLog(200, new Dictionary<string, string>(), "{}", DateTimeOffset.UtcNow, index * 10, null)))
+            .ToArray();
+
+        var summary = analyzer.Analyze(results);
+
+        summary.SlowestTests.Should().HaveCount(5);
+        summary.SlowestTests.Should().Equal(["Test 7 (70 ms)", "Test 6 (60 ms)", "Test 5 (50 ms)", "Test 4 (40 ms)", "Test 3 (30 ms)"]);
+    }
 }

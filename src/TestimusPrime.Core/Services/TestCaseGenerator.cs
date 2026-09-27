@@ -36,7 +36,7 @@ public sealed partial class TestCaseGenerator
                     [200, 201, 202, 204],
                     smokeCandidate,
                     smokeCandidate
-                        ? "Smoke coverage for a critical or safe endpoint; accepts any non-5xx response as an availability signal."
+                        ? "Smoke coverage for a critical or safe endpoint; expects a successful 2xx response as an availability signal."
                         : "Regression coverage for endpoint contract verification with a 2xx-family expectation.");
             })
             .ToArray();

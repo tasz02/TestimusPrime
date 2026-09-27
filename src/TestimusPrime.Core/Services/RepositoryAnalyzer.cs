@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using TestimusPrime.Core.Models;
 
+using RouteRegex = System.Text.RegularExpressions.Regex;
+
 namespace TestimusPrime.Core.Services;
 
 public sealed partial class RepositoryAnalyzer
@@ -59,7 +61,7 @@ public sealed partial class RepositoryAnalyzer
             var routeSearchStart = Math.Max(0, classStart - 400);
             var routeMatch = ControllerRouteRegex.Matches(content[routeSearchStart..classStart]).Cast<Match>().LastOrDefault();
             var controllerRoute = routeMatch is not null && routeMatch.Success ? routeMatch.Groups[1].Value : $"api/{controllerName.Replace("Controller", string.Empty, StringComparison.Ordinal)}";
-            controllerRoute = controllerRoute.Replace("[controller]", controllerName.Replace("Controller", string.Empty, StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase);
+            controllerRoute = RouteRegex.Replace(controllerRoute, @"\[(?i:controller)\]", controllerName.Replace("Controller", string.Empty, StringComparison.Ordinal));
 
             foreach (Match actionMatch in ControllerActionRegex.Matches(classSegment))
             {
@@ -92,7 +94,7 @@ public sealed partial class RepositoryAnalyzer
         foreach (Match match in MinimalApiRegex.Matches(content))
         {
             var methodName = match.Groups[1].Value;
-            var route = match.Groups[2].Value;
+            var route = match.Groups[2].Value.Replace("\"\"", "\"");
             var line = GetLineNumber(content, match.Index);
 
             yield return new ApiEndpoint(
@@ -133,7 +135,7 @@ public sealed partial class RepositoryAnalyzer
         return line;
     }
 
-    [GeneratedRegex(@"\[Route\(""([^""\)]+)""\)\]", RegexOptions.Multiline)]
+    [GeneratedRegex(@"\[Route\(\s*""((?:[^""]|"""")+)""(?:\s*,[^\)]*)?\)\]", RegexOptions.Multiline)]
     private static partial Regex ControllerRoutePattern();
 
     [GeneratedRegex(@"\[(HttpGet|HttpPost|HttpPut|HttpDelete|HttpPatch|HttpHead|HttpOptions)(?:\(""([^""]*)""\))?\][\s\S]*?\b(?:async\s+)?(?:Task<[^>]+>|Task|IActionResult|ActionResult(?:<[^>]+>)?|Results<[^>]+>|IResult|[A-Za-z0-9_<>\[\]\?]+)\s+([A-Za-z0-9_]+)\s*\(", RegexOptions.Multiline)]
@@ -142,6 +144,6 @@ public sealed partial class RepositoryAnalyzer
     [GeneratedRegex(@"class\s+([A-Za-z0-9_]+Controller)\b", RegexOptions.Multiline)]
     private static partial Regex ControllerClassPattern();
 
-    [GeneratedRegex(@"\.Map(Get|Post|Put|Delete|Patch|Head|Options)\s*\(\s*""([^""]+)""", RegexOptions.Multiline)]
+    [GeneratedRegex(@"\.Map(Get|Post|Put|Delete|Patch|Head|Options)\s*\(\s*(?:\$@|@\$|\$|@)?""((?:[^""]|"""")+)""", RegexOptions.Multiline)]
     private static partial Regex MinimalApiPattern();
 }
