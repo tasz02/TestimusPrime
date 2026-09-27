@@ -42,7 +42,7 @@ jobs:
         run: dotnet restore /home/runner/work/TestimusPrime/TestimusPrime/TestimusPrime.slnx
 
       - name: Download generated testcase artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           name: generated-testcases-${{ inputs.test_suite_version_tag }}
           path: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/generated-testcases/${{ inputs.test_suite_version_tag }}
