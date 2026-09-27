@@ -30,21 +30,39 @@ public sealed class TestFrameworkOrchestrator
 
     public async Task<TestRunReport> RunAsync(string repositoryPath, Uri apiBaseUrl, TriggerEvent triggerEvent, CancellationToken cancellationToken = default)
     {
-        var startedAt = DateTimeOffset.UtcNow;
+        var suite = await GenerateAsync(repositoryPath, null, cancellationToken);
+        return await RunGeneratedSuiteAsync(suite, apiBaseUrl, triggerEvent, cancellationToken);
+    }
+
+    public async Task<GeneratedTestSuite> GenerateAsync(string repositoryPath, string? versionTag = null, CancellationToken cancellationToken = default)
+    {
         var analysis = await _repositoryAnalyzer.AnalyzeAsync(repositoryPath, cancellationToken);
         var testCases = _testCaseGenerator.Generate(analysis);
-        var selection = _testRunPlanner.Plan(testCases, triggerEvent);
+        return new GeneratedTestSuite(
+            string.IsNullOrWhiteSpace(versionTag) ? JsonGeneratedTestSuiteStore.CreateDefaultVersionTag() : versionTag,
+            repositoryPath,
+            DateTimeOffset.UtcNow,
+            analysis,
+            testCases);
+    }
+
+    public async Task<TestRunReport> RunGeneratedSuiteAsync(GeneratedTestSuite suite, Uri apiBaseUrl, TriggerEvent triggerEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(suite);
+
+        var startedAt = DateTimeOffset.UtcNow;
+        var selection = _testRunPlanner.Plan(suite.TestCases, triggerEvent);
         var results = await _testExecutor.ExecuteAsync(apiBaseUrl, selection, cancellationToken);
         var summary = _testResultAnalyzer.Analyze(results);
         var report = new TestRunReport(
             Guid.NewGuid().ToString("n"),
-            repositoryPath,
+            suite.RepositoryPath,
             apiBaseUrl,
             triggerEvent,
             startedAt,
             DateTimeOffset.UtcNow,
-            analysis,
-            testCases,
+            suite.Analysis,
+            suite.TestCases,
             results,
             summary);
 

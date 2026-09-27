@@ -1,0 +1,90 @@
+name: Generate testcases
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repository_path:
+        description: Repository-relative folder to analyze
+        required: false
+        default: tests/TestimusPrime.Tests/Fixtures/SampleApi
+      test_suite_version_tag:
+        description: Optional version tag for the generated test suite
+        required: false
+        default: ""
+      create_git_tag:
+        description: Push a matching git tag for the generated test suite version
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-testcases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore /home/runner/work/TestimusPrime/TestimusPrime/TestimusPrime.slnx
+
+      - name: Resolve workflow paths
+        id: paths
+        run: |
+          set -euo pipefail
+          target_path="${GITHUB_WORKSPACE}/${{ inputs.target_repository_path }}"
+          if [ ! -d "$target_path" ]; then
+            echo "Target repository path does not exist: $target_path"
+            exit 1
+          fi
+
+          version_tag="${{ inputs.test_suite_version_tag }}"
+          if [ -z "$version_tag" ]; then
+            version_tag="testcases-v$(date -u +%Y%m%d%H%M%S%3N)-${GITHUB_RUN_ID}"
+          fi
+
+          output_dir="${GITHUB_WORKSPACE}/artifacts/generated-testcases/${version_tag}"
+          suite_file="${output_dir}/${version_tag}.json"
+
+          echo "target_path=$target_path" >> "$GITHUB_OUTPUT"
+          echo "version_tag=$version_tag" >> "$GITHUB_OUTPUT"
+          echo "output_dir=$output_dir" >> "$GITHUB_OUTPUT"
+          echo "suite_file=$suite_file" >> "$GITHUB_OUTPUT"
+
+      - name: Generate versioned testcases
+        run: >
+          dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
+          --mode=Generate
+          --repo=${{ steps.paths.outputs.target_path }}
+          --output=${{ steps.paths.outputs.output_dir }}
+          --version-tag=${{ steps.paths.outputs.version_tag }}
+
+      - name: Upload generated testcase artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-testcases-${{ steps.paths.outputs.version_tag }}
+          path: ${{ steps.paths.outputs.output_dir }}
+
+      - name: Create git tag for generated testcases
+        if: ${{ inputs.create_git_tag == 'true' }}
+        run: |
+          set -euo pipefail
+          tag_name="${{ steps.paths.outputs.version_tag }}"
+          if git rev-parse "$tag_name" >/dev/null 2>&1; then
+            echo "Tag already exists: $tag_name"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$tag_name"
+          git push origin "refs/tags/$tag_name"

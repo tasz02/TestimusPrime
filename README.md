@@ -46,6 +46,38 @@ Optional arguments:
 
 Generated run artifacts are stored as JSON and can be opened in the dashboard.
 
+### Generate a versioned testcase suite without executing it
+
+```bash
+dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner -- \
+  --mode=Generate \
+  --repo=/absolute/path/to/api-repo \
+  --output=/absolute/path/to/generated-testcases \
+  --version-tag=testcases-v20260927150000
+```
+
+### Execute a previously generated testcase suite
+
+```bash
+dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner -- \
+  --mode=ExecuteGenerated \
+  --test-suite=/absolute/path/to/generated-testcases/testcases-v20260927150000.json \
+  --api-base-url=https://localhost:5001 \
+  --trigger=PullRequest \
+  --output=/absolute/path/to/output-directory
+```
+
+## GitHub Actions
+
+You can launch the built-in flows from the Actions tab with manual workflows:
+
+- `Generate testcases` - analyzes a repository-relative folder, saves a versioned testcase suite artifact, and can push a matching git tag
+- `Run generated testcases` - downloads a previously generated testcase artifact from a selected workflow run and executes it against a target API
+- `Run smoke suite` - starts the sample API fixture and runs the runner with `--trigger=Commit`
+- `Run regression suite` - starts the sample API fixture and runs the runner with `--trigger=PullRequest`
+
+The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
+
 ## Dashboard
 
 ```bash
