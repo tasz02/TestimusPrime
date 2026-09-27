@@ -1,0 +1,72 @@
+name: Run smoke suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      timeout_seconds:
+        description: HTTP timeout for each generated request
+        required: false
+        default: "30"
+
+permissions:
+  contents: read
+
+jobs:
+  run-smoke-suite:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore /home/runner/work/TestimusPrime/TestimusPrime/TestimusPrime.slnx
+
+      - name: Start sample API
+        run: |
+          dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/SampleApi.csproj --urls http://127.0.0.1:5050 > /tmp/sample-api.log 2>&1 &
+          echo $! > /tmp/sample-api.pid
+
+      - name: Wait for sample API
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5050/status > /dev/null; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Sample API did not become ready in time."
+          cat /tmp/sample-api.log
+          exit 1
+
+      - name: Run smoke suite
+        run: >
+          dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
+          --repo=/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi
+          --api-base-url=http://127.0.0.1:5050
+          --trigger=Commit
+          --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke
+          --timeout-seconds=${{ inputs.timeout_seconds }}
+
+      - name: Upload smoke suite artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-suite-artifacts
+          path: |
+            /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke
+            /tmp/sample-api.log
+
+      - name: Stop sample API
+        if: always()
+        run: |
+          if [ -f /tmp/sample-api.pid ]; then
+            kill "$(cat /tmp/sample-api.pid)" || true
+          fi

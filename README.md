@@ -46,6 +46,15 @@ Optional arguments:
 
 Generated run artifacts are stored as JSON and can be opened in the dashboard.
 
+## GitHub Actions
+
+You can launch the built-in demo flows from the Actions tab with manual workflows:
+
+- `Run smoke suite` - starts the sample API fixture and runs the runner with `--trigger=Commit`
+- `Run regression suite` - starts the sample API fixture and runs the runner with `--trigger=PullRequest`
+
+Each workflow uploads the generated run artifacts and sample API log as downloadable workflow artifacts.
+
 ## Dashboard
 
 ```bash
