@@ -6,6 +6,15 @@ namespace TestimusPrime.Tests;
 public sealed class JsonGeneratedTestSuiteStoreTests
 {
     [Fact]
+    public void CreateDefaultVersionTag_ReturnsUniqueValues()
+    {
+        var first = JsonGeneratedTestSuiteStore.CreateDefaultVersionTag();
+        var second = JsonGeneratedTestSuiteStore.CreateDefaultVersionTag();
+
+        first.Should().NotBe(second);
+    }
+
+    [Fact]
     public async Task SaveAsync_ThenLoadAsync_RoundTripsGeneratedSuite()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"testimusprime-generated-suite-{Guid.NewGuid():n}");

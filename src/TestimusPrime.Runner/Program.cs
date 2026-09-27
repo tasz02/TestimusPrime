@@ -115,9 +115,11 @@ internal sealed record RunnerOptions(
             throw new ArgumentException("Provide --test-suite=<path>.");
         }
 
-        var outputDirectory = values.TryGetValue("output", out var output) && !string.IsNullOrWhiteSpace(output)
-            ? output
-            : ResolveDefaultOutputDirectory(mode, repositoryPath, testSuitePath);
+        var outputDirectory = ResolveOutputDirectory(
+            mode,
+            values.TryGetValue("output", out var output) ? output : null,
+            repositoryPath,
+            testSuitePath);
 
         var triggerEvent = values.TryGetValue("trigger", out var trigger) && Enum.TryParse<TriggerEvent>(trigger, true, out var parsedTrigger)
             ? parsedTrigger
@@ -140,17 +142,33 @@ internal sealed record RunnerOptions(
             mode,
             repositoryPath,
             apiBaseUrl,
-            Path.GetFullPath(outputDirectory),
+            outputDirectory,
             triggerEvent,
             timeoutSeconds,
             testSuitePath,
             versionTag);
     }
 
-    private static string ResolveDefaultOutputDirectory(RunnerMode mode, string? repositoryPath, string? testSuitePath) => mode switch
+    private static string ResolveOutputDirectory(RunnerMode mode, string? output, string? repositoryPath, string? testSuitePath)
     {
-        RunnerMode.Generate => Path.Combine(repositoryPath!, "artifacts", "generated-testcases"),
-        RunnerMode.ExecuteGenerated => Path.Combine(Path.GetDirectoryName(testSuitePath!)!, "testruns"),
-        _ => Path.Combine(repositoryPath!, "artifacts", "testruns")
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            return Path.IsPathRooted(output)
+                ? Path.GetFullPath(output)
+                : Path.GetFullPath(Path.Combine(ResolveModeBaseDirectory(mode, repositoryPath, testSuitePath), output));
+        }
+
+        return mode switch
+        {
+            RunnerMode.Generate => Path.Combine(repositoryPath!, "artifacts", "generated-testcases"),
+            RunnerMode.ExecuteGenerated => Path.Combine(Path.GetDirectoryName(testSuitePath!)!, "testruns"),
+            _ => Path.Combine(repositoryPath!, "artifacts", "testruns")
+        };
+    }
+
+    private static string ResolveModeBaseDirectory(RunnerMode mode, string? repositoryPath, string? testSuitePath) => mode switch
+    {
+        RunnerMode.ExecuteGenerated => Path.GetDirectoryName(testSuitePath!)!,
+        _ => repositoryPath!
     };
 }

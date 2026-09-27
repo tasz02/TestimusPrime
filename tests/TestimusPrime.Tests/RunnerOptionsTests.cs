@@ -48,6 +48,19 @@ public sealed class RunnerOptionsTests
     }
 
     [Fact]
+    public void Parse_ExecuteGeneratedMode_ResolvesRelativeOutputFromSuiteDirectory()
+    {
+        var options = RunnerOptions.Parse([
+            "--mode=ExecuteGenerated",
+            "--test-suite=/tmp/generated-suite.json",
+            "--api-base-url=https://example.test",
+            "--output=reports"
+        ]);
+
+        options.OutputDirectory.Should().Be(Path.GetFullPath("/tmp/reports"));
+    }
+
+    [Fact]
     public void Parse_ThrowsForNonPositiveTimeout()
     {
         var parse = () => RunnerOptions.Parse([

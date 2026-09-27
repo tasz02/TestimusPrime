@@ -52,7 +52,7 @@ public sealed class JsonGeneratedTestSuiteStore
         return suite ?? throw new InvalidOperationException("Generated test suite file was empty or invalid.");
     }
 
-    public static string CreateDefaultVersionTag() => $"testcases-v{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+    public static string CreateDefaultVersionTag() => $"testcases-v{DateTimeOffset.UtcNow:yyyyMMddHHmmssfffffff}-{Guid.NewGuid():n}";
 
     private static string SanitizeVersionTag(string versionTag)
     {

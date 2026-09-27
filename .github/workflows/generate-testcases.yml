@@ -49,7 +49,7 @@ jobs:
 
           version_tag="${{ inputs.test_suite_version_tag }}"
           if [ -z "$version_tag" ]; then
-            version_tag="testcases-v$(date -u +%Y%m%d%H%M%S)"
+            version_tag="testcases-v$(date -u +%Y%m%d%H%M%S%3N)-${GITHUB_RUN_ID}"
           fi
 
           output_dir="${GITHUB_WORKSPACE}/artifacts/generated-testcases/${version_tag}"
