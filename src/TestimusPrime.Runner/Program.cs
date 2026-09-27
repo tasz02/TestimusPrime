@@ -99,12 +99,12 @@ internal sealed record RunnerOptions(
         values.TryGetValue("test-suite", out var testSuitePath);
         testSuitePath = string.IsNullOrWhiteSpace(testSuitePath) ? null : Path.GetFullPath(testSuitePath);
 
-        if (mode is RunnerMode.Run or RunnerMode.Generate && string.IsNullOrWhiteSpace(repositoryPath))
+        if ((mode is RunnerMode.Run or RunnerMode.Generate) && string.IsNullOrWhiteSpace(repositoryPath))
         {
             throw new ArgumentException("Provide --repo=<path>.");
         }
 
-        if (mode is RunnerMode.Run or RunnerMode.ExecuteGenerated
+        if ((mode is RunnerMode.Run or RunnerMode.ExecuteGenerated)
             && (string.IsNullOrWhiteSpace(apiBaseUrl) || !Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out _)))
         {
             throw new ArgumentException("Provide --api-base-url=<absolute-url>.");
