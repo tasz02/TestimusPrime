@@ -213,10 +213,12 @@
             const yTickCount = 4;
             const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
             const yMax = yStep * yTickCount;
-            const measuredChartWidth = historyChart.getBoundingClientRect().width
-                || historyChart.parentElement?.getBoundingClientRect().width
-                || Math.max(280, (window.innerWidth || 0) - 64);
-            const width = Math.min(820, Math.max(280, measuredChartWidth - 32));
+            const chartStyles = window.getComputedStyle(historyChart);
+            const horizontalChartPadding = (parseFloat(chartStyles.paddingLeft) || 0) + (parseFloat(chartStyles.paddingRight) || 0);
+            const measuredChartWidth = historyChart.clientWidth
+                || historyChart.parentElement?.clientWidth
+                || Math.max(280, (window.innerWidth || 0) - 32);
+            const width = Math.min(820, Math.max(280, measuredChartWidth - horizontalChartPadding));
             const height = width < 520 ? 240 : 260;
             const margin = { top: 24, right: 24, bottom: 70, left: 60 };
             const chartWidth = width - margin.left - margin.right;
