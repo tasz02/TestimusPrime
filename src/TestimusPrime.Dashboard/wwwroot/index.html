@@ -277,6 +277,7 @@
             dataTableTitle.textContent = 'History data table';
             dataTable.appendChild(dataTableTitle);
             const table = document.createElement('table');
+            table.setAttribute('aria-labelledby', 'history-data-table-title');
             const caption = document.createElement('caption');
             caption.textContent = 'Suite passed and failed test counts by run completion time.';
             table.appendChild(caption);
