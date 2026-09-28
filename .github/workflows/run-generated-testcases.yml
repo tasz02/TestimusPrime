@@ -349,7 +349,7 @@ jobs:
       - name: Build static dashboard site
         run: |
           python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
-            --reports-directory /home/runner/work/TestimusPrime/TestimusPrime/.dashboard-input/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }} \
+            --reports-directory /home/runner/work/TestimusPrime/TestimusPrime/.dashboard-input \
             --existing-site /home/runner/work/TestimusPrime/TestimusPrime/.pages-current \
             --output-site /tmp/testimusprime-pages-output \
             --assets-directory /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot \

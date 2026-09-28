@@ -69,7 +69,7 @@ def load_new_runs(report_directories: list[Path]) -> list[dict]:
     files: list[Path] = []
     for report_directory in report_directories:
         if report_directory.is_dir():
-            files.extend(sorted(report_directory.glob("*.json")))
+            files.extend(sorted(report_directory.rglob("*.json")))
     return load_reports_from_files(files)
 
 
