@@ -83,21 +83,35 @@
 
         function buildTestcaseHistory(reports) {
             const history = new Map();
+            const orderedReports = reports
+                .map((report, index) => ({
+                    report,
+                    index,
+                    timestamp: parseTimestamp(report.completedAt)
+                }))
+                .sort((left, right) => {
+                    if (left.timestamp !== null && right.timestamp !== null && left.timestamp !== right.timestamp) {
+                        return right.timestamp - left.timestamp;
+                    }
 
-            reports.forEach(report => {
+                    if (left.timestamp !== null && right.timestamp === null) {
+                        return -1;
+                    }
+
+                    if (left.timestamp === null && right.timestamp !== null) {
+                        return 1;
+                    }
+
+                    return left.index - right.index;
+                });
+
+            orderedReports.forEach(({ report }) => {
                 report.results.forEach(result => {
                     const existing = history.get(result.testCaseId);
                     if (existing) {
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
-                        const reportTimestamp = parseTimestamp(report.completedAt);
-                        const existingTimestamp = parseTimestamp(existing.latestCompletedAt);
-                        if (reportTimestamp !== null && (existingTimestamp === null || reportTimestamp > existingTimestamp)) {
-                            existing.latestPassed = result.passed;
-                            existing.latestOutcome = result.outcome;
-                            existing.latestCompletedAt = report.completedAt;
-                        }
                     } else {
                         history.set(result.testCaseId, {
                             testCaseId: result.testCaseId,
