@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Render markdown workflow summaries from TestimusPrime JSON run reports.
+
+Smoke and regression workflows provide suite metadata such as suite name,
+configured trigger, API base URL, and timeout. The generated-suite workflow
+provides the version tag instead of suite/timeout details. Invalid report files
+never fail summary generation; they are skipped and surfaced in the warnings
+section so the workflow can still publish the best available summary.
+"""
 
 from __future__ import annotations
 
@@ -122,7 +130,7 @@ def load_report_rows(report_directory: Path, fallback_trigger_event: str | None)
         total = reported_total if reported_total >= minimum_total else minimum_total
         if raw_total is not None and reported_total < minimum_total:
             parse_errors.append(
-                f"{report_file.name}: summary total {reported_total} did not match passed + failed ({total}); using {total}."
+                f"{report_file.name}: summary total {raw_total!r} did not match passed + failed ({total}); using {total}."
             )
         pass_rate_text = f"{(passed / total * 100):.2f}%" if total else "0.00%"
 

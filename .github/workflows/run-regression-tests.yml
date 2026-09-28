@@ -18,6 +18,8 @@ jobs:
     outputs:
       run_artifacts_ready: ${{ steps.mark_run_artifacts_ready.outputs.ready }}
     runs-on: ubuntu-latest
+    env:
+      SUITE_TRIGGER_EVENT: PullRequest
 
     steps:
       - name: Checkout repository
@@ -57,7 +59,7 @@ jobs:
           dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
           --repo=/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi
           --api-base-url=http://127.0.0.1:5050
-          --trigger=PullRequest
+          --trigger=${{ env.SUITE_TRIGGER_EVENT }}
           --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression
           --timeout-seconds=${{ inputs.timeout_seconds }}
 
@@ -84,7 +86,7 @@ jobs:
             --summary-title "Regression run summary" \
             --suite-name Regression \
             --api-base-url http://127.0.0.1:5050 \
-            --trigger-event PullRequest \
+            --trigger-event "${{ env.SUITE_TRIGGER_EVENT }}" \
             --timeout-seconds "${{ inputs.timeout_seconds }}" \
             --execution-step-outcome "${{ steps.run_regression_suite.outcome }}" \
             --report-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression \

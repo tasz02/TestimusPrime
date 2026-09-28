@@ -18,6 +18,8 @@ jobs:
     outputs:
       run_artifacts_ready: ${{ steps.mark_run_artifacts_ready.outputs.ready }}
     runs-on: ubuntu-latest
+    env:
+      SUITE_TRIGGER_EVENT: Commit
 
     steps:
       - name: Checkout repository
@@ -57,7 +59,7 @@ jobs:
           dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
           --repo=/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi
           --api-base-url=http://127.0.0.1:5050
-          --trigger=Commit
+          --trigger=${{ env.SUITE_TRIGGER_EVENT }}
           --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke
           --timeout-seconds=${{ inputs.timeout_seconds }}
 
@@ -84,7 +86,7 @@ jobs:
             --summary-title "Smoke run summary" \
             --suite-name Smoke \
             --api-base-url http://127.0.0.1:5050 \
-            --trigger-event Commit \
+            --trigger-event "${{ env.SUITE_TRIGGER_EVENT }}" \
             --timeout-seconds "${{ inputs.timeout_seconds }}" \
             --execution-step-outcome "${{ steps.run_smoke_suite.outcome }}" \
             --report-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke \
