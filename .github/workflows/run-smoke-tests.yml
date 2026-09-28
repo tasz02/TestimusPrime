@@ -19,9 +19,8 @@ permissions:
 
 jobs:
   run-smoke-suite:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      dashboard_pages_ready: ${{ steps.mark_dashboard_pages_ready.outputs.ready }}
     runs-on: ubuntu-latest
 
     steps:
@@ -144,15 +143,16 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Upload dashboard Pages artifact
+        id: upload_dashboard_pages_artifact
         if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/testimusprime-pages-output
 
-      - name: Deploy dashboard to GitHub Pages
-        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Mark dashboard Pages artifact ready
+        id: mark_dashboard_pages_ready
+        if: ${{ always() && steps.upload_dashboard_pages_artifact.outcome == 'success' }}
+        run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Stop sample API
         if: always()
@@ -196,3 +196,15 @@ jobs:
 
           print("Smoke suite execution completed with no failed tests.")
           PY
+
+  deploy-dashboard:
+    if: ${{ always() && needs.run-smoke-suite.outputs.dashboard_pages_ready == 'true' }}
+    needs: run-smoke-suite
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy dashboard to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
