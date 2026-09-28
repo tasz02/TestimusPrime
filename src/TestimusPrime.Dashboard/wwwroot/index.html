@@ -142,7 +142,16 @@
             });
 
             return Array.from(history.values())
-                .sort((left, right) => (left.testName ?? left.testCaseId ?? '').localeCompare(right.testName ?? right.testCaseId ?? ''));
+                .sort((left, right) => {
+                    const leftName = left.testName ?? left.testCaseId ?? '';
+                    const rightName = right.testName ?? right.testCaseId ?? '';
+                    const nameComparison = leftName.localeCompare(rightName);
+                    if (nameComparison !== 0) {
+                        return nameComparison;
+                    }
+
+                    return (left.testCaseId ?? '').localeCompare(right.testCaseId ?? '');
+                });
         }
 
         function renderTestcases(reports) {
