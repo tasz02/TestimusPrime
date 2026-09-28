@@ -7,6 +7,7 @@ import html
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from urllib.parse import quote
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,7 +52,7 @@ def main() -> int:
 
     print(f"| Execution step outcome | `{escape_cell(args.execution_step_outcome)}` |")
     print(f"| Report directory | `{escape_cell(report_directory)}` |")
-    print(f"| Dashboard | [Open dashboard]({args.dashboard_url}) |")
+    print(f"| Dashboard | [Open dashboard]({escape_link_destination(args.dashboard_url)}) |")
     print()
     print("### Summary totals")
     print()
@@ -155,6 +156,10 @@ def escape_cell(value: object) -> str:
     text = "" if value is None else str(value)
     text = text.replace("\\", "\\\\").replace("|", "\\|")
     return html.escape(text, quote=False).replace("\n", "<br>")
+
+
+def escape_link_destination(value: str) -> str:
+    return quote(value, safe="/:#?&=@[]!$&'*+,;%-._~")
 
 
 if __name__ == "__main__":
