@@ -159,124 +159,16 @@ jobs:
 
       - name: Summarize generated testcase results
         if: always()
-        env:
-          REPORT_DIRECTORY: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
-          TEST_STEP_OUTCOME: ${{ steps.run_saved_testcase_suite.outcome }}
-          TRIGGER_EVENT: ${{ inputs.trigger_event }}
-          VERSION_TAG: ${{ inputs.test_suite_version_tag }}
-          API_BASE_URL: ${{ inputs.api_base_url }}
         run: |
           set -o pipefail
-          python <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
-          import json
-          import os
-          import pathlib
-          from collections.abc import Mapping
- 
-          def escape_cell(value):
-              text = "" if value is None else str(value)
-              return text.replace("|", "\\|").replace("\n", "<br>")
- 
-          def as_int(value):
-              try:
-                  return max(int(value), 0)
-              except (TypeError, ValueError):
-                  return 0
-
-          report_directory = pathlib.Path(os.environ["REPORT_DIRECTORY"])
-          rows = []
-          totals = {"total": 0, "passed": 0, "failed": 0}
-          parse_errors = []
-          if report_directory.is_dir():
-              report_files = sorted(report_directory.glob("*.json"))
-          else:
-              report_files = []
-              parse_errors.append(f"Report directory not found: {report_directory}")
- 
-          for report_file in report_files:
-              try:
-                  with report_file.open(encoding="utf-8") as handle:
-                      report = json.load(handle)
-              except Exception as exc:  # summary generation must remain best-effort
-                  parse_errors.append(f"{report_file.name}: {exc}")
-                  continue
- 
-              if not isinstance(report, Mapping):
-                  parse_errors.append(f"{report_file.name}: expected a JSON object")
-                  continue
- 
-              summary = report.get("summary") or {}
-              if not isinstance(summary, Mapping):
-                  summary = {}
-
-              passed = as_int(summary.get("passed"))
-              failed = as_int(summary.get("failed"))
-              reported_total = as_int(summary.get("total"))
-              minimum_total = passed + failed
-              total = reported_total if reported_total >= minimum_total else minimum_total
-              if reported_total and reported_total < minimum_total:
-                  parse_errors.append(
-                      f"{report_file.name}: summary total {reported_total} did not match passed + failed ({total}); using {total}."
-                  )
-              pass_rate_text = f"{(passed / total * 100):.2f}%" if total else "0.00%"
-              totals["total"] += total
-              totals["passed"] += passed
-              totals["failed"] += failed
-              rows.append(
-                  {
-                      "report": report_file.name,
-                      "run_id": report.get("runId") or report_file.stem,
-                      "trigger_event": report.get("triggerEvent") or os.environ["TRIGGER_EVENT"],
-                      "completed_at": report.get("completedAt") or "",
-                      "total": total,
-                      "passed": passed,
-                      "failed": failed,
-                      "pass_rate": pass_rate_text,
-                  }
-              )
- 
-          overall_pass_rate = round((totals["passed"] / totals["total"] * 100), 2) if totals["total"] else 0
-          print("## Generated testcase run summary")
-          print()
-          print("| Field | Value |")
-          print("| --- | --- |")
-          print(f"| Version tag | `{escape_cell(os.environ['VERSION_TAG'])}` |")
-          print(f"| API base URL | `{escape_cell(os.environ['API_BASE_URL'])}` |")
-          print(f"| Trigger event | `{escape_cell(os.environ['TRIGGER_EVENT'])}` |")
-          print(f"| Execution step outcome | `{escape_cell(os.environ['TEST_STEP_OUTCOME'])}` |")
-          print(f"| Report directory | `{escape_cell(report_directory)}` |")
-          print(f"| Dashboard | [Open dashboard](https://tasz02.github.io/TestimusPrime/) |")
-          print()
-          print("### Summary totals")
-          print()
-          print("| Total tests | Passed | Failed | Pass rate | Reports |")
-          print("| ---: | ---: | ---: | ---: | ---: |")
-          print(f"| {totals['total']} | {totals['passed']} | {totals['failed']} | {overall_pass_rate:.2f}% | {len(rows)} |")
-          print()
-          print("### Test results")
-          print()
-          print("| Report | Run ID | Trigger | Completed | Total | Passed | Failed | Pass rate |")
-          print("| --- | --- | --- | --- | ---: | ---: | ---: | ---: |")
-          if rows:
-              for row in rows:
-                  print(
-                      f"| `{escape_cell(row['report'])}` | "
-                      f"`{escape_cell(row['run_id'])}` | "
-                      f"`{escape_cell(row['trigger_event'])}` | "
-                      f"`{escape_cell(row['completed_at'])}` | "
-                      f"{row['total']} | {row['passed']} | {row['failed']} | {escape_cell(row['pass_rate'])} |"
-                  )
-          else:
-              print("| _No parsed reports found_ |  |  |  | 0 | 0 | 0 | 0.00% |")
-          print()
- 
-          if parse_errors:
-              print("### Report parsing warnings")
-              print()
-              for error in parse_errors:
-                  print(f"- {escape_cell(error)}")
-              print()
-          PY
+          python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/summarize_test_run.py \
+            --summary-title "Generated testcase run summary" \
+            --version-tag "${{ inputs.test_suite_version_tag }}" \
+            --api-base-url "${{ inputs.api_base_url }}" \
+            --trigger-event "${{ inputs.trigger_event }}" \
+            --execution-step-outcome "${{ steps.run_saved_testcase_suite.outcome }}" \
+            --report-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }} \
+            --dashboard-url https://tasz02.github.io/TestimusPrime/ | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Fail workflow when generated tests fail
         if: always()
