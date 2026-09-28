@@ -208,11 +208,10 @@
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
 
-            const xTickIndexes = [...new Set(Array.from({ length: Math.min(plottedTicks.length, 5) }, (_, index) =>
-                Math.round((index * (plottedTicks.length - 1)) / Math.max(Math.min(plottedTicks.length, 5) - 1, 1))))];
+            const tickReports = [...new Set(Array.from({ length: Math.min(plottedTicks.length, 5) }, (_, index) =>
+                plottedTicks[Math.round((index * (plottedTicks.length - 1)) / Math.max(Math.min(plottedTicks.length, 5) - 1, 1))]))];
 
-            xTickIndexes.forEach(reportIndex => {
-                const report = plottedTicks[reportIndex];
+            tickReports.forEach(report => {
                 const x = xPosition(new Date(report.completedAt).valueOf());
                 svg.appendChild(createSvgElement('line', { x1: x, y1: height - margin.bottom, x2: x, y2: height - margin.bottom + 6, stroke: '#64748b', 'stroke-width': 1 }));
 
