@@ -26,11 +26,14 @@
     <div id="metrics" class="metrics"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
+    <h2>All testcases</h2>
+    <div id="testcases"></div>
     <script>
         const errorBox = document.getElementById('error');
         const sourceBox = document.getElementById('source');
         const metrics = document.getElementById('metrics');
         const runs = document.getElementById('runs');
+        const testcases = document.getElementById('testcases');
         const triggerLabels = { 0: 'Commit', 1: 'PullRequest', Commit: 'Commit', PullRequest: 'PullRequest' };
         const suiteLabels = { 0: 'Smoke', 1: 'Regression', Smoke: 'Smoke', Regression: 'Regression' };
         const sources = [
@@ -68,6 +71,91 @@
         const statusClass = passed => passed ? 'passed' : 'failed';
         const formatTrigger = trigger => triggerLabels[trigger] ?? String(trigger ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
+        const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
+
+        function buildTestcaseHistory(reports) {
+            const history = new Map();
+
+            reports.forEach(report => {
+                report.results.forEach(result => {
+                    const existing = history.get(result.testCaseId);
+                    if (existing) {
+                        existing.totalRuns += 1;
+                        existing.passed += result.passed ? 1 : 0;
+                        existing.failed += result.passed ? 0 : 1;
+                    } else {
+                        history.set(result.testCaseId, {
+                            testCaseId: result.testCaseId,
+                            testName: result.testName,
+                            suites: result.suites,
+                            totalRuns: 1,
+                            passed: result.passed ? 1 : 0,
+                            failed: result.passed ? 0 : 1,
+                            latestOutcome: result.outcome,
+                            latestCompletedAt: report.completedAt
+                        });
+                    }
+                });
+            });
+
+            return Array.from(history.values())
+                .sort((left, right) => left.testName.localeCompare(right.testName));
+        }
+
+        function renderTestcases(reports) {
+            testcases.replaceChildren();
+            const history = buildTestcaseHistory(reports);
+
+            if (history.length === 0) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No testcase history available.';
+                testcases.appendChild(empty);
+                return;
+            }
+
+            const table = document.createElement('table');
+            const headerRow = document.createElement('tr');
+            ['Testcase', 'Runs', 'Passed', 'Failed', 'Pass rate', 'Latest outcome', 'Latest run'].forEach(label => {
+                const header = document.createElement('th');
+                header.textContent = label;
+                headerRow.appendChild(header);
+            });
+
+            const thead = document.createElement('thead');
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            history.forEach(entry => {
+                const row = document.createElement('tr');
+
+                const testCell = document.createElement('td');
+                testCell.append(document.createTextNode(entry.testName));
+                testCell.appendChild(document.createElement('br'));
+                const suites = document.createElement('small');
+                suites.textContent = formatSuites(entry.suites);
+                testCell.appendChild(suites);
+
+                const latestOutcome = document.createElement('span');
+                latestOutcome.className = statusClass(entry.failed === 0);
+                latestOutcome.textContent = entry.latestOutcome;
+
+                row.append(
+                    testCell,
+                    createCell(String(entry.totalRuns)),
+                    createCell(String(entry.passed)),
+                    createCell(String(entry.failed)),
+                    createCell(formatPassRate(entry.passed, entry.totalRuns)),
+                    createCell(latestOutcome),
+                    createCell(new Date(entry.latestCompletedAt).toLocaleString())
+                );
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            testcases.appendChild(table);
+        }
 
         async function getJson(url) {
             const response = await fetch(url, { cache: 'no-store' });
@@ -143,6 +231,8 @@
                 details.append(summaryElement, completed, stats, table);
                 runs.appendChild(details);
             });
+
+            renderTestcases(reports);
         }
 
         async function load() {
@@ -164,6 +254,7 @@
 
             metrics.replaceChildren();
             runs.replaceChildren();
+            testcases.replaceChildren();
             sourceBox.textContent = '';
             errorBox.className = 'error';
             errorBox.textContent = lastError instanceof Error ? lastError.message : 'Dashboard failed to load.';
