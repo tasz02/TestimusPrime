@@ -9,7 +9,7 @@
         .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .card, details, .error { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
         .chart-card { margin-bottom: 2rem; overflow-x: auto; max-width: 960px; }
-        .chart-card svg { display: block; width: 100%; min-width: 820px; height: auto; }
+        .chart-card svg { display: block; width: 100%; height: auto; }
         .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: #cbd5e1; }
         .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
@@ -211,8 +211,8 @@
             const yTickCount = 4;
             const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
             const yMax = yStep * yTickCount;
-            const width = 820;
-            const height = 260;
+            const width = Math.min(820, Math.max(360, historyChart.clientWidth - 32));
+            const height = width < 520 ? 240 : 260;
             const margin = { top: 24, right: 24, bottom: 70, left: 60 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
