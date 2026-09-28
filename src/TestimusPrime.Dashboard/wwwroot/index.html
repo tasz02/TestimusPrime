@@ -35,7 +35,7 @@
     <div id="source" class="source"></div>
     <div id="metrics" class="metrics"></div>
     <h2 id="history-heading">History</h2>
-    <div id="history-chart" class="card chart-card" role="group" aria-labelledby="history-heading"></div>
+    <div id="history-chart" class="card chart-card"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
     <script>
@@ -95,7 +95,6 @@
 
         function renderHistoryChart(reports) {
             historyChart.replaceChildren();
-            historyChart.removeAttribute('aria-describedby');
 
             const orderedReports = reports
                 .filter(report => report?.completedAt && !Number.isNaN(new Date(report.completedAt).valueOf()))
@@ -113,7 +112,6 @@
                 empty.className = 'chart-empty';
                 empty.textContent = 'No suite history available yet.';
                 historyChart.appendChild(empty);
-                historyChart.setAttribute('aria-describedby', 'history-chart-description');
                 return;
             }
 
@@ -155,7 +153,6 @@
                 empty.className = 'chart-empty';
                 empty.textContent = 'No suite history available yet.';
                 historyChart.appendChild(empty);
-                historyChart.setAttribute('aria-describedby', 'history-chart-description');
                 return;
             }
 
@@ -187,7 +184,6 @@
             description.className = 'chart-description';
             description.textContent = 'Passed lines are solid, failed lines are dashed, and detailed point values are listed in the history data table below.';
             historyChart.appendChild(description);
-            historyChart.setAttribute('aria-describedby', 'history-chart-description');
 
             const svg = createSvgElement('svg', { viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true', focusable: 'false' });
 
@@ -406,7 +402,6 @@
 
             metrics.replaceChildren();
             historyChart.replaceChildren();
-            historyChart.removeAttribute('aria-describedby');
             runs.replaceChildren();
             sourceBox.textContent = '';
             errorBox.className = 'error';
