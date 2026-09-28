@@ -171,6 +171,12 @@ jobs:
                   return int(value)
               except (TypeError, ValueError):
                   return 0
+
+          def as_percentage_text(value):
+              try:
+                  return f"{float(value):.2f}%"
+              except (TypeError, ValueError):
+                  return ""
  
           report_directory = pathlib.Path(os.environ["REPORT_DIRECTORY"])
           report_files = sorted(report_directory.glob("*.json"))
@@ -210,7 +216,7 @@ jobs:
                       "total": total,
                       "passed": passed,
                       "failed": failed,
-                      "pass_rate": pass_rate if pass_rate is not None else "",
+                      "pass_rate": as_percentage_text(pass_rate),
                   }
               )
  
@@ -237,14 +243,12 @@ jobs:
           print("| --- | --- | --- | --- | ---: | ---: | ---: | ---: |")
           if rows:
               for row in rows:
-                  pass_rate = row["pass_rate"]
-                  pass_rate_text = f"{float(pass_rate):.2f}%" if pass_rate not in ("", None) else ""
                   print(
                       f"| `{escape_cell(row['report'])}` | "
                       f"`{escape_cell(row['run_id'])}` | "
                       f"`{escape_cell(row['trigger_event'])}` | "
                       f"`{escape_cell(row['completed_at'])}` | "
-                      f"{row['total']} | {row['passed']} | {row['failed']} | {escape_cell(pass_rate_text)} |"
+                      f"{row['total']} | {row['passed']} | {row['failed']} | {escape_cell(row['pass_rate'])} |"
                   )
           else:
               print("| _No parsed reports found_ |  |  |  | 0 | 0 | 0 | 0.00% |")
