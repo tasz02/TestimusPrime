@@ -180,6 +180,7 @@
             const caption = document.createElement('caption');
             caption.textContent = 'All testcases history';
             table.appendChild(caption);
+            const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             ['Testcase', 'Runs', 'Passed', 'Failed', 'Pass rate', 'Latest outcome', 'Latest run'].forEach(label => {
                 const header = document.createElement('th');
@@ -187,8 +188,6 @@
                 header.scope = 'col';
                 headerRow.appendChild(header);
             });
-
-            const thead = document.createElement('thead');
             thead.appendChild(headerRow);
             table.appendChild(thead);
 
