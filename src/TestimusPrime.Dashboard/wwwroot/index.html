@@ -185,7 +185,15 @@
             description.textContent = 'Passed lines are solid, failed lines are dashed, and detailed point values are listed in the history data table below.';
             historyChart.appendChild(description);
 
-            const svg = createSvgElement('svg', { viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true', focusable: 'false' });
+            const svg = createSvgElement('svg', {
+                viewBox: `0 0 ${width} ${height}`,
+                role: 'img',
+                'aria-labelledby': 'history-chart-title',
+                'aria-describedby': 'history-chart-description'
+            });
+            const chartTitle = createSvgElement('title', { id: 'history-chart-title' });
+            chartTitle.textContent = 'History chart of passed and failed test counts by suite over time';
+            svg.appendChild(chartTitle);
 
             for (let tick = 0; tick <= yTickCount; tick += 1) {
                 const value = tick * yStep;
