@@ -214,8 +214,11 @@
             const margin = { top: 24, right: 24, bottom: 70, left: 60 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
+            const hasSingleTimestamp = minTime === maxTime;
             const timeSpan = Math.max(maxTime - minTime, 1);
-            const xPosition = timestamp => margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
+            const xPosition = timestamp => hasSingleTimestamp
+                ? margin.left + (chartWidth / 2)
+                : margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
             const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
             const maxSeriesSpread = 30;
             const maxSeriesOffsetStep = 10;
