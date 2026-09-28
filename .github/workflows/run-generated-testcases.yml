@@ -179,10 +179,14 @@ jobs:
                   return ""
  
           report_directory = pathlib.Path(os.environ["REPORT_DIRECTORY"])
-          report_files = sorted(report_directory.glob("*.json"))
           rows = []
           totals = {"total": 0, "passed": 0, "failed": 0}
           parse_errors = []
+          if report_directory.is_dir():
+              report_files = sorted(report_directory.glob("*.json"))
+          else:
+              report_files = []
+              parse_errors.append(f"Report directory not found: {report_directory}")
  
           for report_file in report_files:
               try:
