@@ -18,6 +18,8 @@ jobs:
     outputs:
       run_artifacts_ready: ${{ steps.mark_run_artifacts_ready.outputs.ready }}
     runs-on: ubuntu-latest
+    env:
+      SUITE_TRIGGER_EVENT: PullRequest
 
     steps:
       - name: Checkout repository
@@ -57,7 +59,7 @@ jobs:
           dotnet run --project /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Runner --
           --repo=/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi
           --api-base-url=http://127.0.0.1:5050
-          --trigger=PullRequest
+          --trigger=${{ env.SUITE_TRIGGER_EVENT }}
           --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression
           --timeout-seconds=${{ inputs.timeout_seconds }}
 
@@ -76,14 +78,19 @@ jobs:
         if: ${{ always() && steps.upload_run_artifacts.outcome == 'success' }}
         run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Link dashboard from summary
+      - name: Summarize regression suite results
         if: always()
         run: |
-          {
-            echo "## Dashboard"
-            echo
-            echo "[Open dashboard](https://tasz02.github.io/TestimusPrime/)"
-          } >> "$GITHUB_STEP_SUMMARY"
+          set -o pipefail
+          python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/summarize_test_run.py \
+            --summary-title "Regression run summary" \
+            --suite-name Regression \
+            --api-base-url http://127.0.0.1:5050 \
+            --trigger-event "${{ env.SUITE_TRIGGER_EVENT }}" \
+            --timeout-seconds "${{ inputs.timeout_seconds }}" \
+            --execution-step-outcome "${{ steps.run_regression_suite.outcome }}" \
+            --report-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression \
+            --dashboard-url https://tasz02.github.io/TestimusPrime/ | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Stop sample API
         if: always()
