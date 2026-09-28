@@ -14,8 +14,10 @@
         .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
         .chart-swatch.failed { border-top-style: dashed; }
+        .chart-description { color: #cbd5e1; margin: 0 0 1rem; }
         .chart-empty { color: #94a3b8; margin: 0; }
         .chart-table { margin-top: 1rem; }
+        .chart-table-title { color: #cbd5e1; font-weight: 600; margin: 0 0 0.75rem; }
         h1, h2 { margin-top: 0; }
         .run { margin-bottom: 1rem; }
         .error { border-color: #ef4444; color: #fecaca; margin-bottom: 1rem; }
@@ -32,7 +34,7 @@
     <div id="error"></div>
     <div id="source" class="source"></div>
     <div id="metrics" class="metrics"></div>
-    <h2>History</h2>
+    <h2 id="history-heading">History</h2>
     <div id="history-chart" class="card chart-card"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
@@ -169,7 +171,21 @@
             const xPosition = timestamp => margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
             const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
 
-            const svg = createSvgElement('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'History chart showing passed and failed test counts per suite over time.' });
+            const description = document.createElement('p');
+            description.id = 'history-chart-description';
+            description.className = 'chart-description';
+            description.textContent = 'Passed lines are solid, failed lines are dashed, and detailed point values are listed in the history data table below.';
+            historyChart.appendChild(description);
+
+            const svg = createSvgElement('svg', {
+                viewBox: `0 0 ${width} ${height}`,
+                role: 'img',
+                'aria-labelledby': 'history-heading history-chart-title',
+                'aria-describedby': 'history-chart-description'
+            });
+            const chartTitle = createSvgElement('title', { id: 'history-chart-title' });
+            chartTitle.textContent = 'Suite pass and fail history chart';
+            svg.appendChild(chartTitle);
 
             for (let tick = 0; tick <= yTickCount; tick += 1) {
                 const value = tick * yStep;
@@ -254,13 +270,12 @@
 
             historyChart.appendChild(legend);
 
-            const dataTable = document.createElement('details');
+            const dataTable = document.createElement('div');
             dataTable.className = 'chart-table';
-
-            const dataTableSummary = document.createElement('summary');
-            dataTableSummary.textContent = 'History data table';
-            dataTable.appendChild(dataTableSummary);
-
+            const dataTableTitle = document.createElement('p');
+            dataTableTitle.className = 'chart-table-title';
+            dataTableTitle.textContent = 'History data table';
+            dataTable.appendChild(dataTableTitle);
             const table = document.createElement('table');
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
