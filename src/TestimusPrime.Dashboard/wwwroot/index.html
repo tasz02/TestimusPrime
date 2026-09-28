@@ -72,6 +72,10 @@
         const formatTrigger = trigger => triggerLabels[trigger] ?? String(trigger ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
         const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
+        const parseTimestamp = value => {
+            const timestamp = Date.parse(value ?? '');
+            return Number.isNaN(timestamp) ? 0 : timestamp;
+        };
 
         function buildTestcaseHistory(reports) {
             const history = new Map();
@@ -83,6 +87,11 @@
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
+                        if (parseTimestamp(report.completedAt) >= parseTimestamp(existing.latestCompletedAt)) {
+                            existing.latestPassed = result.passed;
+                            existing.latestOutcome = result.outcome;
+                            existing.latestCompletedAt = report.completedAt;
+                        }
                     } else {
                         history.set(result.testCaseId, {
                             testCaseId: result.testCaseId,
@@ -100,7 +109,7 @@
             });
 
             return Array.from(history.values())
-                .sort((left, right) => left.testName.localeCompare(right.testName));
+                .sort((left, right) => (left.testName ?? left.testCaseId ?? '').localeCompare(right.testName ?? right.testCaseId ?? ''));
         }
 
         function renderTestcases(reports) {
