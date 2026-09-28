@@ -238,18 +238,23 @@
 
                 const groupOffsetStep = Math.min(maxSeriesOffsetStep, maxSeriesSpread / (group.length - 1));
                 const groupCenter = (group.length - 1) / 2;
-                group
+                const orderedGroup = group
                     .slice()
-                    .sort((left, right) => left.seriesIndex - right.seriesIndex || left.pointIndex - right.pointIndex)
-                    .forEach((entry, entryIndex) => {
-                        pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, (entryIndex - groupCenter) * groupOffsetStep);
-                    });
+                    .sort((left, right) => left.seriesIndex - right.seriesIndex || left.pointIndex - right.pointIndex);
+                const baseTimestamp = series[orderedGroup[0].seriesIndex].points[orderedGroup[0].pointIndex].completedAt.valueOf();
+                const baseX = xPosition(baseTimestamp);
+                const rawOffsets = orderedGroup.map((entry, entryIndex) => ({ entry, offset: (entryIndex - groupCenter) * groupOffsetStep }));
+                const maxLeftOffset = Math.abs(Math.min(0, ...rawOffsets.map(item => item.offset)));
+                const maxRightOffset = Math.max(0, ...rawOffsets.map(item => item.offset));
+                const leftScale = maxLeftOffset === 0 ? 1 : (baseX - margin.left) / maxLeftOffset;
+                const rightScale = maxRightOffset === 0 ? 1 : ((width - margin.right) - baseX) / maxRightOffset;
+                const offsetScale = Math.max(0, Math.min(1, leftScale, rightScale));
+                rawOffsets.forEach(({ entry, offset }) => {
+                    pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, offset * offsetScale);
+                });
             });
             const getPointOffset = (seriesIndex, pointIndex) => pointOffsets.get(`${seriesIndex}:${pointIndex}`) ?? 0;
-            const pointXPosition = (timestamp, seriesOffset = 0) => {
-                const x = xPosition(timestamp) + seriesOffset;
-                return Math.max(margin.left, Math.min(width - margin.right, x));
-            };
+            const pointXPosition = (timestamp, seriesOffset = 0) => xPosition(timestamp) + seriesOffset;
 
             const description = document.createElement('p');
             description.id = 'history-chart-description';
