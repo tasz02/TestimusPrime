@@ -8,8 +8,8 @@
         body { font-family: Arial, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }
         .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .card, details, .error { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
-        .chart-card { margin-bottom: 2rem; overflow-x: auto; }
-        .chart-card svg { display: block; width: 100%; min-width: 720px; height: auto; }
+        .chart-card { margin-bottom: 2rem; overflow-x: auto; max-width: 960px; }
+        .chart-card svg { display: block; width: 100%; height: auto; }
         .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: #cbd5e1; }
         .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
@@ -48,6 +48,8 @@
         const runs = document.getElementById('runs');
         const testcases = document.getElementById('testcases');
         const svgNamespace = 'http://www.w3.org/2000/svg';
+        let renderedDashboard = null;
+        let resizeTimer = 0;
         const triggerLabels = { 0: 'Commit', 1: 'PullRequest', Commit: 'Commit', PullRequest: 'PullRequest' };
         const suiteLabels = { 0: 'Smoke', 1: 'Regression', Smoke: 'Smoke', Regression: 'Regression' };
         const sources = [
@@ -101,8 +103,29 @@
         const formatSuite = suite => suiteLabels[suite] ?? String(suite ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
         const formatHistoryDate = value => new Date(value).toLocaleString([], { timeZone: 'UTC', timeZoneName: 'short' });
-        const formatHistoryAxisDate = value => new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
-        const seriesColor = (index, failed) => `hsl(${(index * 137) % 360} 75% ${failed ? 52 : 64}%)`;
+        const formatHistoryAxisDateParts = value => {
+            const timestamp = new Date(value);
+            return [
+                timestamp.toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+                timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
+            ];
+        };
+        const seriesPalette = {
+            smoke: { passed: '#f97316', failed: '#ef4444' },
+            regression: { passed: '#3b82f6', failed: '#a855f7' }
+        };
+        const getSeriesColors = (suiteName, index) => {
+            const paletteKey = String(suiteName ?? '').toLowerCase();
+            const palette = seriesPalette[paletteKey];
+            if (palette) {
+                return palette;
+            }
+
+            return {
+                passed: `hsl(${(index * 137) % 360} 75% 64%)`,
+                failed: `hsl(${(index * 137) % 360} 75% 52%)`
+            };
+        };
         const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
         const getTestcaseKey = (report, result, resultIndex) => result.testCaseId
             ?? ([
@@ -141,8 +164,7 @@
             }
 
             const series = suiteNames.flatMap((suiteName, index) => {
-                const baseColor = seriesColor(index, false);
-                const failedColor = seriesColor(index, true);
+                const colors = getSeriesColors(suiteName, index);
                 const points = orderedReports
                     .map(report => {
                         const suiteSummary = Array.isArray(report?.summary?.suites)
@@ -167,8 +189,8 @@
                     .filter(point => point !== null);
 
                 return [
-                    { label: `${suiteName} Passed`, color: baseColor, dashed: false, points: points.map(point => ({ ...point, value: point.passed })) },
-                    { label: `${suiteName} Failed`, color: failedColor, dashed: true, points: points.map(point => ({ ...point, value: point.failed })) }
+                    { label: `${suiteName} Passed`, color: colors.passed, dashed: false, points: points.map(point => ({ ...point, value: point.passed })) },
+                    { label: `${suiteName} Failed`, color: colors.failed, dashed: true, points: points.map(point => ({ ...point, value: point.failed })) }
                 ];
             }).filter(seriesEntry => seriesEntry.points.length > 0);
 
@@ -177,31 +199,89 @@
                 return;
             }
 
-            const timestamps = orderedReports
-                .map(report => new Date(report.completedAt).valueOf())
-                .filter(timestamp => !Number.isNaN(timestamp));
             const plottedTimestamps = [...new Set(series
                 .flatMap(seriesEntry => seriesEntry.points.map(point => point.completedAt.valueOf())))]
                 .sort((left, right) => left - right);
-            const minTime = Math.min(...timestamps);
-            const maxTime = Math.max(...timestamps);
+            if (plottedTimestamps.length === 0) {
+                renderHistoryEmptyState('No suite history available yet.');
+                return;
+            }
+            const timestampIndexes = new Map(plottedTimestamps.map((timestamp, index) => [timestamp, index]));
+            const minTime = plottedTimestamps[0];
+            const maxTime = plottedTimestamps[plottedTimestamps.length - 1];
             const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
             const yTickCount = 4;
             const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
             const yMax = yStep * yTickCount;
-            const width = 960;
-            const height = 360;
-            const margin = { top: 24, right: 24, bottom: 72, left: 60 };
+            const chartStyles = window.getComputedStyle(historyChart);
+            const horizontalChartPadding = (parseFloat(chartStyles.paddingLeft) || 0) + (parseFloat(chartStyles.paddingRight) || 0);
+            const measuredChartWidth = historyChart.clientWidth
+                || historyChart.parentElement?.clientWidth
+                || Math.max(280, (window.innerWidth || 0) - 32);
+            const width = Math.min(820, Math.max(280, measuredChartWidth - horizontalChartPadding));
+            const height = width < 520 ? 240 : 260;
+            const margin = { top: 24, right: 24, bottom: 70, left: 60 };
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
+            const hasSingleTimestamp = minTime === maxTime;
             const timeSpan = Math.max(maxTime - minTime, 1);
-            const xPosition = timestamp => margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
+            const xPosition = timestamp => hasSingleTimestamp
+                ? margin.left + (chartWidth / 2)
+                : margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
             const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
+            const maxSeriesSpread = 30;
+            const maxSeriesOffsetStep = 10;
+            const overlappingPoints = new Map();
+            const pointOffsets = new Map();
+            series.forEach((seriesEntry, seriesIndex) => {
+                seriesEntry.points.forEach((point, pointIndex) => {
+                    const overlapKey = String(point.completedAt.valueOf());
+                    if (!overlappingPoints.has(overlapKey)) {
+                        overlappingPoints.set(overlapKey, []);
+                    }
+
+                    overlappingPoints.get(overlapKey).push({ seriesIndex, pointIndex });
+                });
+            });
+            overlappingPoints.forEach(group => {
+                if (group.length < 2) {
+                    return;
+                }
+
+                const groupOffsetStep = Math.min(maxSeriesOffsetStep, maxSeriesSpread / (group.length - 1));
+                const groupCenter = (group.length - 1) / 2;
+                const orderedGroup = group
+                    .slice()
+                    .sort((left, right) => left.seriesIndex - right.seriesIndex || left.pointIndex - right.pointIndex);
+                const baseTimestamp = series[orderedGroup[0].seriesIndex].points[orderedGroup[0].pointIndex].completedAt.valueOf();
+                const timestampIndex = timestampIndexes.get(baseTimestamp) ?? 0;
+                const baseX = xPosition(baseTimestamp);
+                const edgeTimestampSpread = 18;
+                const previousTimestamp = timestampIndex > 0 ? plottedTimestamps[timestampIndex - 1] : null;
+                const nextTimestamp = timestampIndex < plottedTimestamps.length - 1 ? plottedTimestamps[timestampIndex + 1] : null;
+                const leftBoundary = hasSingleTimestamp
+                    ? baseX - (edgeTimestampSpread / 2)
+                    : previousTimestamp === null ? baseX - (edgeTimestampSpread / 2) : (xPosition(previousTimestamp) + baseX) / 2;
+                const rightBoundary = hasSingleTimestamp
+                    ? baseX + (edgeTimestampSpread / 2)
+                    : nextTimestamp === null ? baseX + (edgeTimestampSpread / 2) : (baseX + xPosition(nextTimestamp)) / 2;
+                const rawOffsets = orderedGroup.map((entry, entryIndex) => ({ entry, offset: (entryIndex - groupCenter) * groupOffsetStep }));
+                const maxLeftOffset = Math.abs(Math.min(0, ...rawOffsets.map(item => item.offset)));
+                const maxRightOffset = Math.max(0, ...rawOffsets.map(item => item.offset));
+                const leftScale = maxLeftOffset === 0 ? 1 : (baseX - leftBoundary) / maxLeftOffset;
+                const rightScale = maxRightOffset === 0 ? 1 : (rightBoundary - baseX) / maxRightOffset;
+                const offsetScale = Math.max(0, Math.min(1, leftScale, rightScale));
+                rawOffsets.forEach(({ entry, offset }) => {
+                    pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, offset * offsetScale);
+                });
+            });
+            const getPointOffset = (seriesIndex, pointIndex) => pointOffsets.get(`${seriesIndex}:${pointIndex}`) ?? 0;
+            const pointXPosition = (timestamp, seriesOffset = 0) => xPosition(timestamp) + seriesOffset;
 
             const description = document.createElement('p');
             description.id = 'history-chart-description';
             description.className = 'chart-description';
-            description.textContent = 'Passed lines are solid, failed lines are dashed, and detailed point values are listed in the history data table below.';
+            description.textContent = 'Passed lines are solid, failed lines are dashed, timestamps are shown in UTC, and detailed point values are listed in the history data table below.';
             historyChart.appendChild(description);
 
             const svg = createSvgElement('svg', {
@@ -227,17 +307,27 @@
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
 
-            const tickCount = Math.min(plottedTimestamps.length, 5);
-            const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) =>
-                Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))))];
-            const tickTimestamps = tickIndexes.map(index => plottedTimestamps[index]);
+            const tickTimestamps = hasSingleTimestamp
+                ? [plottedTimestamps[0]]
+                : (() => {
+                    const requestedTickCount = Math.max(2, Math.floor(chartWidth / 150));
+                    const tickCount = Math.min(plottedTimestamps.length, requestedTickCount);
+                    const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) =>
+                        Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))))];
+                    return tickIndexes.map(index => plottedTimestamps[index]);
+                })();
 
             tickTimestamps.forEach(timestamp => {
                 const x = xPosition(timestamp);
                 svg.appendChild(createSvgElement('line', { x1: x, y1: height - margin.bottom, x2: x, y2: height - margin.bottom + 6, stroke: '#64748b', 'stroke-width': 1 }));
 
-                const label = createSvgElement('text', { x, y: height - margin.bottom + 22, fill: '#94a3b8', 'font-size': 12, 'text-anchor': 'middle' });
-                label.textContent = formatHistoryAxisDate(timestamp);
+                const label = createSvgElement('text', { x, y: height - margin.bottom + 20, fill: '#94a3b8', 'font-size': 11, 'text-anchor': 'middle' });
+                const [datePart, timePart] = formatHistoryAxisDateParts(timestamp);
+                const dateLine = createSvgElement('tspan', { x, dy: 0 });
+                dateLine.textContent = datePart;
+                const timeLine = createSvgElement('tspan', { x, dy: 14 });
+                timeLine.textContent = timePart;
+                label.append(dateLine, timeLine);
                 svg.appendChild(label);
             });
 
@@ -245,18 +335,18 @@
             yAxisLabel.textContent = 'Test count';
             svg.appendChild(yAxisLabel);
 
-            const xAxisLabel = createSvgElement('text', { x: margin.left + (chartWidth / 2), y: height - 18, fill: '#cbd5e1', 'font-size': 12, 'text-anchor': 'middle' });
-            xAxisLabel.textContent = 'Completed at';
+            const xAxisLabel = createSvgElement('text', { x: margin.left + (chartWidth / 2), y: height - 14, fill: '#cbd5e1', 'font-size': 12, 'text-anchor': 'middle' });
+            xAxisLabel.textContent = 'Completed at (UTC)';
             svg.appendChild(xAxisLabel);
 
-            series.forEach(seriesEntry => {
+            series.forEach((seriesEntry, seriesIndex) => {
                 const pathAttributes = {
                     d: seriesEntry.points
-                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${xPosition(point.completedAt.valueOf())} ${yPosition(point.value)}`)
+                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex))} ${yPosition(point.value)}`)
                         .join(' '),
                     fill: 'none',
                     stroke: seriesEntry.color,
-                    'stroke-width': 3,
+                    'stroke-width': 2.5,
                     'stroke-linecap': 'round',
                     'stroke-linejoin': 'round'
                 };
@@ -267,11 +357,11 @@
                 const path = createSvgElement('path', pathAttributes);
                 svg.appendChild(path);
 
-                seriesEntry.points.forEach(point => {
+                seriesEntry.points.forEach((point, pointIndex) => {
                     const circle = createSvgElement('circle', {
-                        cx: xPosition(point.completedAt.valueOf()),
+                        cx: pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex)),
                         cy: yPosition(point.value),
-                        r: 4,
+                        r: 3.5,
                         fill: seriesEntry.color
                     });
                     const title = createSvgElement('title');
@@ -485,6 +575,7 @@
         }
 
         function render(summary, reports, sourceLabel) {
+            renderedDashboard = { summary, reports, sourceLabel };
             errorBox.className = '';
             errorBox.textContent = '';
             sourceBox.textContent = `Showing data from ${sourceLabel}.`;
@@ -581,6 +672,16 @@
         }
 
         load();
+        window.addEventListener('resize', () => {
+            if (!renderedDashboard) {
+                return;
+            }
+
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(() => {
+                render(renderedDashboard.summary, renderedDashboard.reports, renderedDashboard.sourceLabel);
+            }, 100);
+        });
     </script>
 </body>
 </html>
