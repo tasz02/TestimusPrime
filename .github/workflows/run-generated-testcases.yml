@@ -172,12 +172,6 @@ jobs:
               except (TypeError, ValueError):
                   return 0
 
-          def as_percentage_text(value):
-              try:
-                  return f"{float(value):.2f}%"
-              except (TypeError, ValueError):
-                  return ""
- 
           report_directory = pathlib.Path(os.environ["REPORT_DIRECTORY"])
           rows = []
           totals = {"total": 0, "passed": 0, "failed": 0}
@@ -207,13 +201,13 @@ jobs:
               total = as_int(summary.get("total"))
               passed = as_int(summary.get("passed"))
               failed = as_int(summary.get("failed"))
-              pass_rate = summary.get("passRate")
               expected_total = passed + failed
               if total != expected_total:
                   parse_errors.append(
                       f"{report_file.name}: summary total {total} did not match passed + failed ({expected_total}); using {expected_total}."
                   )
                   total = expected_total
+              pass_rate_text = f"{(passed / total * 100):.2f}%" if total else "0.00%"
               totals["total"] += total
               totals["passed"] += passed
               totals["failed"] += failed
@@ -226,7 +220,7 @@ jobs:
                       "total": total,
                       "passed": passed,
                       "failed": failed,
-                      "pass_rate": as_percentage_text(pass_rate),
+                      "pass_rate": pass_rate_text,
                   }
               )
  
