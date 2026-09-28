@@ -26,11 +26,14 @@
     <div id="metrics" class="metrics"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
+    <h2>All testcases</h2>
+    <div id="testcases"></div>
     <script>
         const errorBox = document.getElementById('error');
         const sourceBox = document.getElementById('source');
         const metrics = document.getElementById('metrics');
         const runs = document.getElementById('runs');
+        const testcases = document.getElementById('testcases');
         const triggerLabels = { 0: 'Commit', 1: 'PullRequest', Commit: 'Commit', PullRequest: 'PullRequest' };
         const suiteLabels = { 0: 'Smoke', 1: 'Regression', Smoke: 'Smoke', Regression: 'Regression' };
         const sources = [
@@ -68,6 +71,161 @@
         const statusClass = passed => passed ? 'passed' : 'failed';
         const formatTrigger = trigger => triggerLabels[trigger] ?? String(trigger ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
+        const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
+        const getTestcaseKey = (report, result, resultIndex) => result.testCaseId
+            ?? ([
+                result.testName,
+                formatSuites(result.suites),
+                result.request?.method,
+                result.request?.url,
+                result.request?.body
+            ].filter(value => typeof value === 'string' && value.length > 0).join('|')
+                || `anonymous:${report.runId ?? 'run'}:${resultIndex}`);
+        const parseTimestamp = value => {
+            const timestamp = Date.parse(value ?? '');
+            return Number.isNaN(timestamp) ? null : timestamp;
+        };
+        const formatDateTime = value => {
+            const timestamp = parseTimestamp(value);
+            return timestamp === null ? 'Unknown' : new Date(timestamp).toLocaleString();
+        };
+
+        function buildTestcaseHistory(reports) {
+            const history = new Map();
+            const orderedReports = reports
+                .map((report, index) => ({
+                    report,
+                    index,
+                    timestamp: parseTimestamp(report.completedAt)
+                }))
+                .sort((left, right) => {
+                    if (left.timestamp !== null && right.timestamp !== null && left.timestamp !== right.timestamp) {
+                        return right.timestamp - left.timestamp;
+                    }
+
+                    if (left.timestamp !== null && right.timestamp === null) {
+                        return -1;
+                    }
+
+                    if (left.timestamp === null && right.timestamp !== null) {
+                        return 1;
+                    }
+
+                    return left.index - right.index;
+                });
+
+            orderedReports.forEach(({ report, index, timestamp }) => {
+                (report.results ?? []).forEach((result, resultIndex) => {
+                    const testcaseKey = getTestcaseKey(report, result, resultIndex);
+                    const existing = history.get(testcaseKey);
+                    if (existing) {
+                        existing.totalRuns += 1;
+                        existing.passed += result.passed ? 1 : 0;
+                        existing.failed += result.passed ? 0 : 1;
+                        const shouldReplaceLatest = existing.latestTimestamp === null
+                            ? timestamp !== null || index < existing.latestOrder
+                            : timestamp !== null && (timestamp > existing.latestTimestamp || (timestamp === existing.latestTimestamp && index < existing.latestOrder));
+
+                        if (shouldReplaceLatest) {
+                            existing.displayName = result.testName;
+                            existing.displaySuites = result.suites;
+                            existing.latestPassed = result.passed;
+                            existing.latestOutcome = result.outcome;
+                            existing.latestCompletedAt = report.completedAt;
+                            existing.latestTimestamp = timestamp;
+                            existing.latestOrder = index;
+                        }
+                    } else {
+                        history.set(testcaseKey, {
+                            testCaseId: result.testCaseId,
+                            displayName: result.testName,
+                            displaySuites: result.suites,
+                            totalRuns: 1,
+                            passed: result.passed ? 1 : 0,
+                            failed: result.passed ? 0 : 1,
+                            latestPassed: result.passed,
+                            latestOutcome: result.outcome,
+                            latestCompletedAt: report.completedAt,
+                            latestTimestamp: timestamp,
+                            latestOrder: index
+                        });
+                    }
+                });
+            });
+
+            return Array.from(history.values())
+                .sort((left, right) => {
+                    const leftName = left.displayName ?? left.testCaseId ?? '';
+                    const rightName = right.displayName ?? right.testCaseId ?? '';
+                    const nameComparison = leftName.localeCompare(rightName);
+                    if (nameComparison !== 0) {
+                        return nameComparison;
+                    }
+
+                    return (left.testCaseId ?? '').localeCompare(right.testCaseId ?? '');
+                });
+        }
+
+        function renderTestcases(reports) {
+            testcases.replaceChildren();
+            const history = buildTestcaseHistory(reports);
+
+            if (history.length === 0) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No testcase history available.';
+                testcases.appendChild(empty);
+                return;
+            }
+
+            const table = document.createElement('table');
+            const caption = document.createElement('caption');
+            caption.textContent = 'All testcases history';
+            table.appendChild(caption);
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['Testcase', 'Runs', 'Passed', 'Failed', 'Pass rate', 'Latest outcome', 'Latest run'].forEach(label => {
+                const header = document.createElement('th');
+                header.textContent = label;
+                header.scope = 'col';
+                headerRow.appendChild(header);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            history.forEach(entry => {
+                const row = document.createElement('tr');
+
+                const testCell = document.createElement('td');
+                testCell.append(document.createTextNode(entry.displayName ?? entry.testCaseId ?? 'Unnamed testcase'));
+                const suitesText = formatSuites(entry.displaySuites);
+                if (suitesText) {
+                    testCell.appendChild(document.createElement('br'));
+                    const suites = document.createElement('small');
+                    suites.textContent = suitesText;
+                    testCell.appendChild(suites);
+                }
+
+                const latestOutcome = document.createElement('span');
+                latestOutcome.className = statusClass(entry.latestPassed);
+                latestOutcome.textContent = entry.latestOutcome ?? 'Unknown';
+
+                row.append(
+                    testCell,
+                    createCell(String(entry.totalRuns)),
+                    createCell(String(entry.passed)),
+                    createCell(String(entry.failed)),
+                    createCell(formatPassRate(entry.passed, entry.totalRuns)),
+                    createCell(latestOutcome),
+                    createCell(formatDateTime(entry.latestCompletedAt))
+                );
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            testcases.appendChild(table);
+        }
 
         async function getJson(url) {
             const response = await fetch(url, { cache: 'no-store' });
@@ -143,6 +301,8 @@
                 details.append(summaryElement, completed, stats, table);
                 runs.appendChild(details);
             });
+
+            renderTestcases(reports);
         }
 
         async function load() {
@@ -164,6 +324,7 @@
 
             metrics.replaceChildren();
             runs.replaceChildren();
+            testcases.replaceChildren();
             sourceBox.textContent = '';
             errorBox.className = 'error';
             errorBox.textContent = lastError instanceof Error ? lastError.message : 'Dashboard failed to load.';
