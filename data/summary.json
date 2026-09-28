@@ -1,10 +1,19 @@
 {
-  "totalRuns": 1,
-  "totalTests": 4,
-  "passedTests": 3,
-  "failedTests": 1,
+  "totalRuns": 2,
+  "totalTests": 8,
+  "passedTests": 6,
+  "failedTests": 2,
   "averagePassRate": 75.0,
   "recentRuns": [
+    {
+      "runId": "22494b00900a4ffe83e2d3c104cedd73",
+      "triggerEvent": 1,
+      "completedAt": "2026-09-28T14:00:52.6339157+00:00",
+      "total": 4,
+      "passed": 3,
+      "failed": 1,
+      "passRate": 75.0
+    },
     {
       "runId": "8d33a2e34dbb4fa88d040f3c3f333bc3",
       "triggerEvent": 1,
