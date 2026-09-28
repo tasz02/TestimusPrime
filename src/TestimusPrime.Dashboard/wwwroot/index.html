@@ -233,7 +233,7 @@
             const pointOffsets = new Map();
             series.forEach((seriesEntry, seriesIndex) => {
                 seriesEntry.points.forEach((point, pointIndex) => {
-                    const overlapKey = `${point.completedAt.valueOf()}:${point.value}`;
+                    const overlapKey = String(point.completedAt.valueOf());
                     if (!overlappingPoints.has(overlapKey)) {
                         overlappingPoints.set(overlapKey, []);
                     }
@@ -340,7 +340,7 @@
             series.forEach((seriesEntry, seriesIndex) => {
                 const pathAttributes = {
                     d: seriesEntry.points
-                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${xPosition(point.completedAt.valueOf())} ${yPosition(point.value)}`)
+                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex))} ${yPosition(point.value)}`)
                         .join(' '),
                     fill: 'none',
                     stroke: seriesEntry.color,
