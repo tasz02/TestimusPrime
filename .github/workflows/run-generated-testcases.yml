@@ -204,6 +204,12 @@ jobs:
               passed = as_int(summary.get("passed"))
               failed = as_int(summary.get("failed"))
               pass_rate = summary.get("passRate")
+              expected_total = passed + failed
+              if total != expected_total:
+                  parse_errors.append(
+                      f"{report_file.name}: summary total {total} did not match passed + failed ({expected_total}); using {expected_total}."
+                  )
+                  total = expected_total
               totals["total"] += total
               totals["passed"] += passed
               totals["failed"] += failed
