@@ -156,6 +156,7 @@ jobs:
           VERSION_TAG: ${{ inputs.test_suite_version_tag }}
           API_BASE_URL: ${{ inputs.api_base_url }}
         run: |
+          set -o pipefail
           python <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
           import os
