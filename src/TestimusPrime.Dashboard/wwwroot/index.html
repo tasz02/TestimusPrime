@@ -74,11 +74,11 @@
         const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
         const parseTimestamp = value => {
             const timestamp = Date.parse(value ?? '');
-            return Number.isNaN(timestamp) ? 0 : timestamp;
+            return Number.isNaN(timestamp) ? null : timestamp;
         };
         const formatDateTime = value => {
             const timestamp = parseTimestamp(value);
-            return timestamp === 0 ? 'Unknown' : new Date(timestamp).toLocaleString();
+            return timestamp === null ? 'Unknown' : new Date(timestamp).toLocaleString();
         };
 
         function buildTestcaseHistory(reports) {
@@ -91,7 +91,9 @@
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
-                        if (parseTimestamp(report.completedAt) > parseTimestamp(existing.latestCompletedAt)) {
+                        const reportTimestamp = parseTimestamp(report.completedAt);
+                        const existingTimestamp = parseTimestamp(existing.latestCompletedAt);
+                        if (reportTimestamp !== null && (existingTimestamp === null || reportTimestamp > existingTimestamp)) {
                             existing.latestPassed = result.passed;
                             existing.latestOutcome = result.outcome;
                             existing.latestCompletedAt = report.completedAt;
