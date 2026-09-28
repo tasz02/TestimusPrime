@@ -129,6 +129,13 @@ jobs:
           --output=/home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
           --timeout-seconds=${{ inputs.timeout_seconds }}
 
+      - name: Stop sample API
+        if: always() && steps.sample_api.outputs.should_start == 'true'
+        run: |
+          if [ -f /tmp/sample-api.pid ]; then
+            kill "$(cat /tmp/sample-api.pid)" || true
+          fi
+
       - name: Upload generated-suite run artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -137,13 +144,6 @@ jobs:
           path: |
             /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
             /tmp/sample-api.log
-
-      - name: Stop sample API
-        if: always() && steps.sample_api.outputs.should_start == 'true'
-        run: |
-          if [ -f /tmp/sample-api.pid ]; then
-            kill "$(cat /tmp/sample-api.pid)" || true
-          fi
 
       - name: Fail workflow when generated tests fail
         if: always()
