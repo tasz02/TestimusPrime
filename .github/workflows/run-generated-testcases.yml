@@ -168,7 +168,7 @@ jobs:
  
           def as_int(value):
               try:
-                  return int(value)
+                  return max(int(value), 0)
               except (TypeError, ValueError):
                   return 0
 
@@ -198,15 +198,14 @@ jobs:
               if not isinstance(summary, Mapping):
                   summary = {}
  
-              total = as_int(summary.get("total"))
               passed = as_int(summary.get("passed"))
               failed = as_int(summary.get("failed"))
-              expected_total = passed + failed
-              if total != expected_total:
+              total = passed + failed
+              reported_total = as_int(summary.get("total"))
+              if reported_total != total:
                   parse_errors.append(
-                      f"{report_file.name}: summary total {total} did not match passed + failed ({expected_total}); using {expected_total}."
+                      f"{report_file.name}: summary total {reported_total} did not match passed + failed ({total}); using {total}."
                   )
-                  total = expected_total
               pass_rate_text = f"{(passed / total * 100):.2f}%" if total else "0.00%"
               totals["total"] += total
               totals["passed"] += passed
