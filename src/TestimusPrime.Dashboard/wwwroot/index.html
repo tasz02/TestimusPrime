@@ -211,7 +211,10 @@
             const yTickCount = 4;
             const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
             const yMax = yStep * yTickCount;
-            const width = Math.min(820, Math.max(360, historyChart.clientWidth - 32));
+            const measuredChartWidth = historyChart.getBoundingClientRect().width
+                || historyChart.parentElement?.getBoundingClientRect().width
+                || Math.max(280, (window.innerWidth || 0) - 64);
+            const width = Math.min(820, Math.max(280, measuredChartWidth - 32));
             const height = width < 520 ? 240 : 260;
             const margin = { top: 24, right: 24, bottom: 70, left: 60 };
             const chartWidth = width - margin.left - margin.right;
