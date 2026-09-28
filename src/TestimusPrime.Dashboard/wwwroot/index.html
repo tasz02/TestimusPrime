@@ -10,7 +10,7 @@
         .card, details, .error { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
         .chart-card { margin-bottom: 2rem; overflow-x: auto; }
         .chart-card svg { display: block; width: 100%; min-width: 720px; height: auto; }
-        .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem; font-size: 0.9rem; color: #cbd5e1; }
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin: 1rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; color: #cbd5e1; }
         .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
         .chart-swatch-dashed { border-top-style: dashed; }
@@ -207,8 +207,9 @@
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
 
             const tickCount = Math.min(plottedTimestamps.length, 5);
-            const tickTimestamps = Array.from({ length: tickCount }, (_, index) =>
-                plottedTimestamps[Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))]);
+            const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) =>
+                Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))))];
+            const tickTimestamps = tickIndexes.map(index => plottedTimestamps[index]);
 
             tickTimestamps.forEach(timestamp => {
                 const x = xPosition(timestamp);
@@ -257,10 +258,10 @@
 
             historyChart.appendChild(svg);
 
-            const legend = document.createElement('div');
+            const legend = document.createElement('ul');
             legend.className = 'chart-legend';
             series.forEach(seriesEntry => {
-                const item = document.createElement('span');
+                const item = document.createElement('li');
                 item.className = 'chart-legend-item';
 
                 const swatch = document.createElement('span');
