@@ -48,6 +48,8 @@
         const runs = document.getElementById('runs');
         const testcases = document.getElementById('testcases');
         const svgNamespace = 'http://www.w3.org/2000/svg';
+        let renderedDashboard = null;
+        let resizeTimer = 0;
         const triggerLabels = { 0: 'Commit', 1: 'PullRequest', Commit: 'Commit', PullRequest: 'PullRequest' };
         const suiteLabels = { 0: 'Smoke', 1: 'Regression', Smoke: 'Smoke', Regression: 'Regression' };
         const sources = [
@@ -338,7 +340,7 @@
             series.forEach((seriesEntry, seriesIndex) => {
                 const pathAttributes = {
                     d: seriesEntry.points
-                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex))} ${yPosition(point.value)}`)
+                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${xPosition(point.completedAt.valueOf())} ${yPosition(point.value)}`)
                         .join(' '),
                     fill: 'none',
                     stroke: seriesEntry.color,
@@ -571,6 +573,7 @@
         }
 
         function render(summary, reports, sourceLabel) {
+            renderedDashboard = { summary, reports, sourceLabel };
             errorBox.className = '';
             errorBox.textContent = '';
             sourceBox.textContent = `Showing data from ${sourceLabel}.`;
@@ -667,6 +670,16 @@
         }
 
         load();
+        window.addEventListener('resize', () => {
+            if (!renderedDashboard) {
+                return;
+            }
+
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(() => {
+                render(renderedDashboard.summary, renderedDashboard.reports, renderedDashboard.sourceLabel);
+            }, 100);
+        });
     </script>
 </body>
 </html>
