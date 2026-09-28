@@ -89,9 +89,11 @@ jobs:
           parsed_base_url = urlparse(os.environ["API_BASE_URL"])
           is_localhost = parsed_base_url.hostname in {"127.0.0.1", "localhost"} and parsed_base_url.scheme in {"http", "https"}
           should_start = is_localhost and repository_path == sample_api_path and sample_api_project.is_file()
+          readiness_url = f"{os.environ['API_BASE_URL'].rstrip('/')}/status"
 
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write(f"should_start={'true' if should_start else 'false'}\n")
+              output.write(f"readiness_url={readiness_url}\n")
               if should_start:
                   output.write(f"project_path={sample_api_project}\n")
           PY
@@ -106,7 +108,7 @@ jobs:
         if: ${{ steps.sample_api.outputs.should_start == 'true' }}
         run: |
           for attempt in {1..30}; do
-            if curl --fail --silent ${{ inputs.api_base_url }}/status > /dev/null; then
+            if curl --fail --silent "${{ steps.sample_api.outputs.readiness_url }}" > /dev/null; then
               exit 0
             fi
 
