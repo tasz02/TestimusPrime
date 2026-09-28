@@ -153,7 +153,8 @@ def as_int(value: object) -> int:
 
 def escape_cell(value: object) -> str:
     text = "" if value is None else str(value)
-    return html.escape(text, quote=False).replace("|", "\\|").replace("\n", "<br>")
+    text = text.replace("\\", "\\\\").replace("|", "\\|")
+    return html.escape(text, quote=False).replace("\n", "<br>")
 
 
 if __name__ == "__main__":
