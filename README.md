@@ -76,9 +76,9 @@ You can launch the built-in flows from the Actions tab with manual workflows:
 - `Run smoke suite` - starts the sample API fixture and runs the runner with `--trigger=Commit`
 - `Run regression suite` - starts the sample API fixture and runs the runner with `--trigger=PullRequest`
 
-The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. Generated suite version tags always end with `-<workflow-run-id>`; when you supply `test_suite_version_tag`, treat it as a custom prefix and omit any existing run-ID suffix. The run-generated workflow can then resolve the matching artifact from `test_suite_version_tag` alone. It also lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
+The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. Generated suite version tags always end with `-<workflow-run-id>`; when you supply `test_suite_version_tag`, treat it as a custom prefix and omit any existing run-ID suffix. The run-generated workflow can then resolve the matching artifact from `test_suite_version_tag` alone. It also lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs.
 
-Each execution workflow also refreshes a static dashboard site on the `gh-pages` branch, keeping the 20 most recent run reports for lightweight GitHub Pages hosting. Enable Pages for the repository by publishing from the `gh-pages` branch root.
+Each execution workflow uploads its run reports as artifacts, rebuilds the static dashboard, and deploys the refreshed site to GitHub Pages. The workflow also keeps the 20 most recent run reports in the `gh-pages` branch so the published site can merge new results into the retained dashboard history. Enable Pages for the repository by choosing **GitHub Actions** as the source.
 
 ## Dashboard
 
