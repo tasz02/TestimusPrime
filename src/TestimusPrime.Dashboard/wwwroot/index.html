@@ -110,7 +110,7 @@
                 });
 
             orderedReports.forEach(({ report, index, timestamp }) => {
-                report.results.forEach(result => {
+                (report.results ?? []).forEach(result => {
                     const testcaseKey = getTestcaseKey(result);
                     if (!testcaseKey) {
                         return;
