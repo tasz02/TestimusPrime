@@ -169,11 +169,15 @@ jobs:
         run: |
           pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
           if [ -d "${pages_dir}/.git" ]; then
-            cd "${pages_dir}"
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            git fetch origin gh-pages
-            git checkout gh-pages
-            git reset --hard origin/gh-pages
+            git -C "${pages_dir}" remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            if git -C "${pages_dir}" ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+              git -C "${pages_dir}" fetch origin gh-pages
+              git -C "${pages_dir}" checkout gh-pages
+              git -C "${pages_dir}" reset --hard origin/gh-pages
+            else
+              rm -rf "${pages_dir}"
+              mkdir -p "${pages_dir}"
+            fi
           fi
 
       - name: Build static dashboard site
