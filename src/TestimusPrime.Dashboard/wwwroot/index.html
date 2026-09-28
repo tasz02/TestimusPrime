@@ -190,7 +190,7 @@
 
                 const latestOutcome = document.createElement('span');
                 latestOutcome.className = statusClass(entry.latestPassed);
-                latestOutcome.textContent = entry.latestOutcome;
+                latestOutcome.textContent = entry.latestOutcome ?? 'Unknown';
 
                 row.append(
                     testCell,
