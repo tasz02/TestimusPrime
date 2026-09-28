@@ -11,6 +11,10 @@ on:
         description: Optional custom prefix for the generated test suite version tag
         required: false
         default: ""
+      api_base_url:
+        description: Absolute base URL to reuse with Run generated testcases
+        required: false
+        default: http://127.0.0.1:5050
       create_git_tag:
         description: Push a matching git tag for the generated test suite version
         required: false
@@ -107,6 +111,7 @@ jobs:
           ARTIFACTS_FOLDER: ${{ steps.paths.outputs.output_dir }}
           SUITE_FILE: ${{ steps.paths.outputs.suite_file }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
+          API_BASE_URL: ${{ inputs.api_base_url }}
         run: |
           python <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
@@ -307,7 +312,7 @@ jobs:
           print("### Inputs for `Run generated testcases`")
           print()
           print(f"- `test_suite_version_tag`: `{escape_cell(os.environ['VERSION_TAG'])}`")
-          print("- `api_base_url`: Absolute base URL of the API to test")
+          print(f"- `api_base_url`: `{escape_cell(os.environ['API_BASE_URL'])}`")
           print()
           print("Generated suite version tags always end with `-<workflow-run-id>`, so `test_suite_version_tag` is enough for the run workflow.")
           PY
