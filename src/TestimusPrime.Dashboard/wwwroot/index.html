@@ -72,6 +72,10 @@
         const formatTrigger = trigger => triggerLabels[trigger] ?? String(trigger ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
         const formatPassRate = (passed, total) => `${total === 0 ? 0 : Math.round((passed / total) * 10000) / 100}%`;
+        const getTestcaseKey = result => result.testCaseId
+            ?? ([result.testName, result.request?.method, result.request?.url]
+                .filter(value => typeof value === 'string' && value.length > 0)
+                .join('|') || null);
         const parseTimestamp = value => {
             const timestamp = Date.parse(value ?? '');
             return Number.isNaN(timestamp) ? null : timestamp;
@@ -107,13 +111,18 @@
 
             orderedReports.forEach(({ report }) => {
                 report.results.forEach(result => {
-                    const existing = history.get(result.testCaseId);
+                    const testcaseKey = getTestcaseKey(result);
+                    if (!testcaseKey) {
+                        return;
+                    }
+
+                    const existing = history.get(testcaseKey);
                     if (existing) {
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
                     } else {
-                        history.set(result.testCaseId, {
+                        history.set(testcaseKey, {
                             testCaseId: result.testCaseId,
                             testName: result.testName,
                             suites: result.suites,
