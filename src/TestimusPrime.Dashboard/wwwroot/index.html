@@ -203,6 +203,10 @@
             const plottedTimestamps = [...new Set(series
                 .flatMap(seriesEntry => seriesEntry.points.map(point => point.completedAt.valueOf())))]
                 .sort((left, right) => left - right);
+            if (plottedTimestamps.length === 0) {
+                renderHistoryEmptyState('No suite history available yet.');
+                return;
+            }
             const minTime = Math.min(...timestamps);
             const maxTime = Math.max(...timestamps);
             const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
