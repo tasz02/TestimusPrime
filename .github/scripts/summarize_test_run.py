@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 from collections.abc import Mapping
 from pathlib import Path
@@ -152,7 +153,7 @@ def as_int(value: object) -> int:
 
 def escape_cell(value: object) -> str:
     text = "" if value is None else str(value)
-    return text.replace("|", "\\|").replace("\n", "<br>")
+    return html.escape(text, quote=False).replace("|", "\\|").replace("\n", "<br>")
 
 
 if __name__ == "__main__":
