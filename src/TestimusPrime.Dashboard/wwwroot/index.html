@@ -15,6 +15,7 @@
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
         .chart-swatch.failed { border-top-style: dashed; }
         .chart-empty { color: #94a3b8; margin: 0; }
+        .chart-table { margin-top: 1rem; }
         h1, h2 { margin-top: 0; }
         .run { margin-bottom: 1rem; }
         .error { border-color: #ef4444; color: #fecaca; margin-bottom: 1rem; }
@@ -252,6 +253,42 @@
             });
 
             historyChart.appendChild(legend);
+
+            const dataTable = document.createElement('details');
+            dataTable.className = 'chart-table';
+
+            const dataTableSummary = document.createElement('summary');
+            dataTableSummary.textContent = 'History data table';
+            dataTable.appendChild(dataTableSummary);
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['Completed', 'Run', 'Suite', 'Passed', 'Failed'].forEach(label => {
+                const header = document.createElement('th');
+                header.textContent = label;
+                headerRow.appendChild(header);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            orderedReports.forEach(report => {
+                (report?.summary?.suites ?? []).forEach(suiteSummary => {
+                    const row = document.createElement('tr');
+                    row.append(
+                        createCell(formatHistoryDate(report.completedAt)),
+                        createCell(report.runId),
+                        createCell(formatSuite(suiteSummary?.suite)),
+                        createCell(String(Number(suiteSummary?.passed) || 0)),
+                        createCell(String(Number(suiteSummary?.failed) || 0))
+                    );
+                    tbody.appendChild(row);
+                });
+            });
+            table.appendChild(tbody);
+            dataTable.appendChild(table);
+            historyChart.appendChild(dataTable);
         }
 
         async function getJson(url) {
