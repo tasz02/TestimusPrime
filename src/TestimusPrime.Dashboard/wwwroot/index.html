@@ -121,15 +121,15 @@
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
-                        existing.testName ??= result.testName;
-                        if ((!Array.isArray(existing.suites) || existing.suites.length === 0) && Array.isArray(result.suites) && result.suites.length > 0) {
-                            existing.suites = result.suites;
+                        existing.displayName ??= result.testName;
+                        if ((!Array.isArray(existing.displaySuites) || existing.displaySuites.length === 0) && Array.isArray(result.suites) && result.suites.length > 0) {
+                            existing.displaySuites = result.suites;
                         }
                     } else {
                         history.set(testcaseKey, {
                             testCaseId: result.testCaseId,
-                            testName: result.testName,
-                            suites: result.suites,
+                            displayName: result.testName,
+                            displaySuites: result.suites,
                             totalRuns: 1,
                             passed: result.passed ? 1 : 0,
                             failed: result.passed ? 0 : 1,
@@ -143,8 +143,8 @@
 
             return Array.from(history.values())
                 .sort((left, right) => {
-                    const leftName = left.testName ?? left.testCaseId ?? '';
-                    const rightName = right.testName ?? right.testCaseId ?? '';
+                    const leftName = left.displayName ?? left.testCaseId ?? '';
+                    const rightName = right.displayName ?? right.testCaseId ?? '';
                     const nameComparison = leftName.localeCompare(rightName);
                     if (nameComparison !== 0) {
                         return nameComparison;
@@ -182,10 +182,10 @@
                 const row = document.createElement('tr');
 
                 const testCell = document.createElement('td');
-                testCell.append(document.createTextNode(entry.testName ?? entry.testCaseId ?? 'Unnamed testcase'));
+                testCell.append(document.createTextNode(entry.displayName ?? entry.testCaseId ?? 'Unnamed testcase'));
                 testCell.appendChild(document.createElement('br'));
                 const suites = document.createElement('small');
-                suites.textContent = formatSuites(entry.suites);
+                suites.textContent = formatSuites(entry.displaySuites);
                 testCell.appendChild(suites);
 
                 const latestOutcome = document.createElement('span');
