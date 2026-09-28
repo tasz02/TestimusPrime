@@ -154,6 +154,19 @@ jobs:
             mkdir -p /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
           fi
 
+      - name: Refresh dashboard site history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
+          if [ -d "${pages_dir}/.git" ]; then
+            cd "${pages_dir}"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git fetch origin gh-pages
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
+          fi
+
       - name: Build static dashboard site
         run: |
           python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
@@ -171,10 +184,6 @@ jobs:
           pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
           if [ -d "${pages_dir}/.git" ]; then
             cd "${pages_dir}"
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            git fetch origin gh-pages
-            git checkout gh-pages
-            git reset --hard origin/gh-pages
           else
             rm -rf "${pages_dir}"
             mkdir -p "${pages_dir}"
