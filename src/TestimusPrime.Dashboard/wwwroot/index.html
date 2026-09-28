@@ -121,6 +121,10 @@
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
+                        existing.testName ??= result.testName;
+                        if ((!Array.isArray(existing.suites) || existing.suites.length === 0) && Array.isArray(result.suites) && result.suites.length > 0) {
+                            existing.suites = result.suites;
+                        }
                     } else {
                         history.set(testcaseKey, {
                             testCaseId: result.testCaseId,
