@@ -35,7 +35,7 @@
     <div id="source" class="source"></div>
     <div id="metrics" class="metrics"></div>
     <h2 id="history-heading">History</h2>
-    <div id="history-chart" class="card chart-card" role="group" aria-labelledby="history-heading"></div>
+    <div id="history-chart" class="card chart-card" role="group" aria-labelledby="history-heading" aria-describedby="history-chart-description"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
     <script>
@@ -91,6 +91,7 @@
         const formatSuite = suite => suiteLabels[suite] ?? String(suite ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
         const formatHistoryDate = value => new Date(value).toLocaleString();
+        const formatHistoryAxisDate = value => new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         function renderHistoryChart(reports) {
             historyChart.replaceChildren();
@@ -107,6 +108,7 @@
 
             if (orderedReports.length === 0 || suiteNames.length === 0) {
                 const empty = document.createElement('p');
+                empty.id = 'history-chart-description';
                 empty.className = 'chart-empty';
                 empty.textContent = 'No suite history available yet.';
                 historyChart.appendChild(empty);
@@ -147,6 +149,7 @@
 
             if (series.length === 0) {
                 const empty = document.createElement('p');
+                empty.id = 'history-chart-description';
                 empty.className = 'chart-empty';
                 empty.textContent = 'No suite history available yet.';
                 historyChart.appendChild(empty);
@@ -177,15 +180,7 @@
             description.textContent = 'Passed lines are solid, failed lines are dashed, and detailed point values are listed in the history data table below.';
             historyChart.appendChild(description);
 
-            const svg = createSvgElement('svg', {
-                viewBox: `0 0 ${width} ${height}`,
-                role: 'img',
-                'aria-labelledby': 'history-chart-title',
-                'aria-describedby': 'history-chart-description'
-            });
-            const chartTitle = createSvgElement('title', { id: 'history-chart-title' });
-            chartTitle.textContent = 'Suite pass and fail history chart';
-            svg.appendChild(chartTitle);
+            const svg = createSvgElement('svg', { viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true', focusable: 'false' });
 
             for (let tick = 0; tick <= yTickCount; tick += 1) {
                 const value = tick * yStep;
@@ -209,7 +204,7 @@
                 svg.appendChild(createSvgElement('line', { x1: x, y1: height - margin.bottom, x2: x, y2: height - margin.bottom + 6, stroke: '#64748b', 'stroke-width': 1 }));
 
                 const label = createSvgElement('text', { x, y: height - margin.bottom + 22, fill: '#94a3b8', 'font-size': 12, 'text-anchor': 'middle' });
-                label.textContent = formatHistoryDate(report.completedAt);
+                label.textContent = formatHistoryAxisDate(report.completedAt);
                 svg.appendChild(label);
             });
 
