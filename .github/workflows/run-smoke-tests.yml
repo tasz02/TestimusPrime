@@ -8,8 +8,12 @@ on:
         required: false
         default: "30"
 
+concurrency:
+  group: dashboard-pages-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   run-smoke-suite:
@@ -65,6 +69,47 @@ jobs:
           path: |
             /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke
             /tmp/sample-api.log
+
+      - name: Checkout existing dashboard site
+        if: always()
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: .pages-current
+          fetch-depth: 1
+
+      - name: Build static dashboard site
+        if: always()
+        run: |
+          python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
+            --reports-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/smoke \
+            --existing-site /home/runner/work/TestimusPrime/TestimusPrime/.pages-current \
+            --output-site /tmp/testimusprime-pages-output \
+            --assets-directory /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot \
+            --history-limit 20
+
+      - name: Publish dashboard site
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp/testimusprime-pages-output
+          git init
+          git checkout -B gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "Dashboard site content is unchanged."
+            exit 0
+          fi
+
+          git commit -m "Update dashboard site from smoke suite ${GITHUB_RUN_ID}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin gh-pages
 
       - name: Stop sample API
         if: always()

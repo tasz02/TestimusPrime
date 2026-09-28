@@ -78,6 +78,8 @@ You can launch the built-in flows from the Actions tab with manual workflows:
 
 The generate workflow uploads the versioned testcase JSON as an artifact named `generated-testcases-<version-tag>`, using the version tag as the canonical identifier for the generated suite. Generated suite version tags always end with `-<workflow-run-id>`; when you supply `test_suite_version_tag`, treat it as a custom prefix and omit any existing run-ID suffix. The run-generated workflow can then resolve the matching artifact from `test_suite_version_tag` alone. It also lets you choose `Commit` or `PullRequest` from a fixed dropdown to control whether the smoke or regression subset runs. The execute workflows upload their run reports as downloadable artifacts, which can be consumed by the dashboard without republishing it.
 
+Each execution workflow also refreshes a static dashboard site on the `gh-pages` branch, keeping the 20 most recent run reports for lightweight GitHub Pages hosting. Enable Pages for the repository by publishing from the `gh-pages` branch root.
+
 ## Dashboard
 
 ```bash
@@ -91,6 +93,8 @@ Endpoints:
 - `GET /api/runs`
 - `GET /api/runs/{runId}`
 - `GET /` - HTML dashboard with expandable request/response detail tables
+
+The same dashboard UI is also stored in `/home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot/index.html` so GitHub Pages can serve it as a static site. When the live API endpoints are unavailable, the page automatically falls back to published JSON under `data/summary.json` and `data/runs.json`.
 
 ## Current draft limitations
 
