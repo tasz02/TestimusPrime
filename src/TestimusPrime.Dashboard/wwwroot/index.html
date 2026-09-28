@@ -204,6 +204,7 @@
                 renderHistoryEmptyState('No suite history available yet.');
                 return;
             }
+            const timestampIndexes = new Map(plottedTimestamps.map((timestamp, index) => [timestamp, index]));
             const minTime = plottedTimestamps[0];
             const maxTime = plottedTimestamps[plottedTimestamps.length - 1];
             const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
@@ -246,7 +247,7 @@
                     .slice()
                     .sort((left, right) => left.seriesIndex - right.seriesIndex || left.pointIndex - right.pointIndex);
                 const baseTimestamp = series[orderedGroup[0].seriesIndex].points[orderedGroup[0].pointIndex].completedAt.valueOf();
-                const timestampIndex = plottedTimestamps.indexOf(baseTimestamp);
+                const timestampIndex = timestampIndexes.get(baseTimestamp) ?? 0;
                 const baseX = xPosition(baseTimestamp);
                 const previousTimestamp = timestampIndex > 0 ? plottedTimestamps[timestampIndex - 1] : null;
                 const nextTimestamp = timestampIndex < plottedTimestamps.length - 1 ? plottedTimestamps[timestampIndex + 1] : null;
