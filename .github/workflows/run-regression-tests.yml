@@ -79,6 +79,14 @@ jobs:
           path: .pages-current
           fetch-depth: 1
 
+      - name: Initialize dashboard site history
+        if: always()
+        run: |
+          if [ ! -d /home/runner/work/TestimusPrime/TestimusPrime/.pages-current/.git ]; then
+            rm -rf /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
+            mkdir -p /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
+          fi
+
       - name: Build static dashboard site
         if: always()
         run: |
@@ -95,12 +103,26 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cd /tmp/testimusprime-pages-output
-          git init
-          git checkout -B gh-pages
+          pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
+          if [ -d "${pages_dir}/.git" ]; then
+            cd "${pages_dir}"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git fetch origin gh-pages
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
+          else
+            rm -rf "${pages_dir}"
+            mkdir -p "${pages_dir}"
+            cd "${pages_dir}"
+            git init
+            git checkout -B gh-pages
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+
+          rsync -a --delete /tmp/testimusprime-pages-output/ "${pages_dir}/"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
+          git add --all
 
           if git diff --cached --quiet; then
             echo "Dashboard site content is unchanged."
@@ -108,8 +130,7 @@ jobs:
           fi
 
           git commit -m "Update dashboard site from regression suite ${GITHUB_RUN_ID}"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin gh-pages
+          git push origin gh-pages
 
       - name: Stop sample API
         if: always()

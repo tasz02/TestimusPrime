@@ -94,7 +94,7 @@ Endpoints:
 - `GET /api/runs/{runId}`
 - `GET /` - HTML dashboard with expandable request/response detail tables
 
-The same dashboard UI is also stored in `/home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot/index.html` so GitHub Pages can serve it as a static site. When the live API endpoints are unavailable, the page automatically falls back to published JSON under `data/summary.json` and `data/runs.json`.
+The same dashboard UI is also stored in `src/TestimusPrime.Dashboard/wwwroot/index.html` so GitHub Pages can serve it as a static site. When the live API endpoints are unavailable, the page automatically falls back to published JSON under `data/summary.json` and `data/runs.json`.
 
 ## Current draft limitations
 
