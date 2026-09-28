@@ -120,8 +120,8 @@ jobs:
           PY
 
   publish-dashboard:
-    if: ${{ always() && needs.run-regression-suite.outputs.run_artifacts_ready == 'true' }}
     needs: run-regression-suite
+    if: ${{ always() && needs.run-regression-suite.outputs.run_artifacts_ready == 'true' }}
     concurrency:
       group: dashboard-pages-publish
       cancel-in-progress: false
