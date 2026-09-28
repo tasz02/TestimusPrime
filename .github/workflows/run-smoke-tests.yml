@@ -76,6 +76,15 @@ jobs:
         if: ${{ always() && steps.upload_run_artifacts.outcome == 'success' }}
         run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
+      - name: Link dashboard from summary
+        if: always()
+        run: |
+          {
+            echo "## Dashboard"
+            echo
+            echo "[Open dashboard](https://tasz02.github.io/TestimusPrime/)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Stop sample API
         if: always()
         run: |
