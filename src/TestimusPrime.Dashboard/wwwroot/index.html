@@ -159,11 +159,9 @@
             const timestamps = orderedReports
                 .map(report => new Date(report.completedAt).valueOf())
                 .filter(timestamp => !Number.isNaN(timestamp));
-            const plottedTicks = [...new Map(series
-                .flatMap(seriesEntry => seriesEntry.points.map(point => [point.completedAt.valueOf(), point.report]))
-                .sort((left, right) => left[0] - right[0]))
-                .entries()]
-                .map(([, report]) => report);
+            const plottedTimestamps = [...new Set(series
+                .flatMap(seriesEntry => seriesEntry.points.map(point => point.completedAt.valueOf())))]
+                .sort((left, right) => left - right);
             const minTime = Math.min(...timestamps);
             const maxTime = Math.max(...timestamps);
             const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
@@ -208,16 +206,16 @@
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
 
-            const tickCount = Math.min(plottedTicks.length, 5);
-            const tickReports = Array.from({ length: tickCount }, (_, index) =>
-                plottedTicks[Math.floor((index * (plottedTicks.length - 1)) / Math.max(tickCount - 1, 1))]);
+            const tickCount = Math.min(plottedTimestamps.length, 5);
+            const tickTimestamps = Array.from({ length: tickCount }, (_, index) =>
+                plottedTimestamps[Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))]);
 
-            tickReports.forEach(report => {
-                const x = xPosition(new Date(report.completedAt).valueOf());
+            tickTimestamps.forEach(timestamp => {
+                const x = xPosition(timestamp);
                 svg.appendChild(createSvgElement('line', { x1: x, y1: height - margin.bottom, x2: x, y2: height - margin.bottom + 6, stroke: '#64748b', 'stroke-width': 1 }));
 
                 const label = createSvgElement('text', { x, y: height - margin.bottom + 22, fill: '#94a3b8', 'font-size': 12, 'text-anchor': 'middle' });
-                label.textContent = formatHistoryAxisDate(report.completedAt);
+                label.textContent = formatHistoryAxisDate(timestamp);
                 svg.appendChild(label);
             });
 
