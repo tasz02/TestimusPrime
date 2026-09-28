@@ -35,7 +35,7 @@
     <div id="source" class="source"></div>
     <div id="metrics" class="metrics"></div>
     <h2 id="history-heading">History</h2>
-    <div id="history-chart" class="card chart-card"></div>
+    <div id="history-chart" class="card chart-card" role="group" aria-labelledby="history-heading"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
     <script>
@@ -180,7 +180,7 @@
             const svg = createSvgElement('svg', {
                 viewBox: `0 0 ${width} ${height}`,
                 role: 'img',
-                'aria-labelledby': 'history-heading history-chart-title',
+                'aria-labelledby': 'history-chart-title',
                 'aria-describedby': 'history-chart-description'
             });
             const chartTitle = createSvgElement('title', { id: 'history-chart-title' });
