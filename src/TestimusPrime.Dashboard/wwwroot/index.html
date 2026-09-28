@@ -8,6 +8,13 @@
         body { font-family: Arial, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }
         .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .card, details, .error { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
+        .chart-card { margin-bottom: 2rem; overflow-x: auto; }
+        .chart-card svg { display: block; width: 100%; min-width: 720px; height: auto; }
+        .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem; font-size: 0.9rem; color: #cbd5e1; }
+        .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
+        .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
+        .chart-swatch.failed { border-top-style: dashed; }
+        .chart-empty { color: #94a3b8; margin: 0; }
         h1, h2 { margin-top: 0; }
         .run { margin-bottom: 1rem; }
         .error { border-color: #ef4444; color: #fecaca; margin-bottom: 1rem; }
@@ -24,19 +31,24 @@
     <div id="error"></div>
     <div id="source" class="source"></div>
     <div id="metrics" class="metrics"></div>
+    <h2>History</h2>
+    <div id="history-chart" class="card chart-card"></div>
     <h2>Recent runs</h2>
     <div id="runs"></div>
     <script>
         const errorBox = document.getElementById('error');
         const sourceBox = document.getElementById('source');
         const metrics = document.getElementById('metrics');
+        const historyChart = document.getElementById('history-chart');
         const runs = document.getElementById('runs');
+        const svgNamespace = 'http://www.w3.org/2000/svg';
         const triggerLabels = { 0: 'Commit', 1: 'PullRequest', Commit: 'Commit', PullRequest: 'PullRequest' };
         const suiteLabels = { 0: 'Smoke', 1: 'Regression', Smoke: 'Smoke', Regression: 'Regression' };
         const sources = [
             { label: 'live API', summaryUrl: 'api/summary', runsUrl: 'api/runs' },
             { label: 'published history', summaryUrl: 'data/summary.json', runsUrl: 'data/runs.json' }
         ];
+        const seriesPalette = ['#4ade80', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#fb7185', '#22d3ee', '#f97316'];
 
         const appendMetric = (label, value) => {
             const card = document.createElement('div');
@@ -55,6 +67,12 @@
             return code;
         };
 
+        const createSvgElement = (name, attributes = {}) => {
+            const element = document.createElementNS(svgNamespace, name);
+            Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+            return element;
+        };
+
         const createCell = content => {
             const cell = document.createElement('td');
             if (typeof content === 'string') {
@@ -67,7 +85,174 @@
 
         const statusClass = passed => passed ? 'passed' : 'failed';
         const formatTrigger = trigger => triggerLabels[trigger] ?? String(trigger ?? 'Unknown');
+        const formatSuite = suite => suiteLabels[suite] ?? String(suite ?? 'Unknown');
         const formatSuites = suites => (Array.isArray(suites) ? suites.map(suite => suiteLabels[suite] ?? String(suite)) : []).join(', ');
+        const formatHistoryDate = value => new Date(value).toLocaleString();
+
+        function renderHistoryChart(reports) {
+            historyChart.replaceChildren();
+
+            const orderedReports = reports
+                .filter(report => report?.completedAt)
+                .slice()
+                .sort((left, right) => new Date(left.completedAt) - new Date(right.completedAt));
+
+            const suiteNames = [...new Set(orderedReports.flatMap(report =>
+                Array.isArray(report?.summary?.suites)
+                    ? report.summary.suites.map(suiteSummary => formatSuite(suiteSummary?.suite))
+                    : []))];
+
+            if (orderedReports.length === 0 || suiteNames.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'chart-empty';
+                empty.textContent = 'No suite history available yet.';
+                historyChart.appendChild(empty);
+                return;
+            }
+
+            const series = suiteNames.flatMap((suiteName, index) => {
+                const baseColor = seriesPalette[(index * 2) % seriesPalette.length];
+                const failedColor = seriesPalette[(index * 2 + 1) % seriesPalette.length];
+                const points = orderedReports
+                    .map(report => {
+                        const suiteSummary = Array.isArray(report?.summary?.suites)
+                            ? report.summary.suites.find(candidate => formatSuite(candidate?.suite) === suiteName)
+                            : null;
+                        if (!suiteSummary) {
+                            return null;
+                        }
+
+                        const completedAt = new Date(report.completedAt);
+                        if (Number.isNaN(completedAt.valueOf())) {
+                            return null;
+                        }
+
+                        return {
+                            report,
+                            completedAt,
+                            passed: Number(suiteSummary.passed) || 0,
+                            failed: Number(suiteSummary.failed) || 0
+                        };
+                    })
+                    .filter(point => point !== null);
+
+                return [
+                    { label: `${suiteName} Passed`, color: baseColor, dashed: false, points: points.map(point => ({ ...point, value: point.passed })) },
+                    { label: `${suiteName} Failed`, color: failedColor, dashed: true, points: points.map(point => ({ ...point, value: point.failed })) }
+                ];
+            }).filter(seriesEntry => seriesEntry.points.length > 0);
+
+            if (series.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'chart-empty';
+                empty.textContent = 'No suite history available yet.';
+                historyChart.appendChild(empty);
+                return;
+            }
+
+            const timestamps = orderedReports
+                .map(report => new Date(report.completedAt).valueOf())
+                .filter(timestamp => !Number.isNaN(timestamp));
+            const minTime = Math.min(...timestamps);
+            const maxTime = Math.max(...timestamps);
+            const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
+            const yTickCount = 4;
+            const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
+            const yMax = yStep * yTickCount;
+            const width = 960;
+            const height = 360;
+            const margin = { top: 24, right: 24, bottom: 72, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+            const timeSpan = Math.max(maxTime - minTime, 1);
+            const xPosition = timestamp => margin.left + (((timestamp - minTime) / timeSpan) * chartWidth);
+            const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
+
+            const svg = createSvgElement('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'History chart showing passed and failed test counts per suite over time.' });
+
+            for (let tick = 0; tick <= yTickCount; tick += 1) {
+                const value = tick * yStep;
+                const y = yPosition(value);
+                svg.appendChild(createSvgElement('line', { x1: margin.left, y1: y, x2: width - margin.right, y2: y, stroke: '#334155', 'stroke-width': 1 }));
+
+                const label = createSvgElement('text', { x: margin.left - 10, y: y + 4, fill: '#94a3b8', 'font-size': 12, 'text-anchor': 'end' });
+                label.textContent = String(value);
+                svg.appendChild(label);
+            }
+
+            svg.appendChild(createSvgElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
+            svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
+
+            const xTickIndexes = [...new Set(Array.from({ length: Math.min(orderedReports.length, 5) }, (_, index) =>
+                Math.round((index * (orderedReports.length - 1)) / Math.max(Math.min(orderedReports.length, 5) - 1, 1))))];
+
+            xTickIndexes.forEach(reportIndex => {
+                const report = orderedReports[reportIndex];
+                const x = xPosition(new Date(report.completedAt).valueOf());
+                svg.appendChild(createSvgElement('line', { x1: x, y1: height - margin.bottom, x2: x, y2: height - margin.bottom + 6, stroke: '#64748b', 'stroke-width': 1 }));
+
+                const label = createSvgElement('text', { x, y: height - margin.bottom + 22, fill: '#94a3b8', 'font-size': 12, 'text-anchor': 'middle' });
+                label.textContent = formatHistoryDate(report.completedAt);
+                svg.appendChild(label);
+            });
+
+            const yAxisLabel = createSvgElement('text', { x: 18, y: margin.top + (chartHeight / 2), fill: '#cbd5e1', 'font-size': 12, transform: `rotate(-90 18 ${margin.top + (chartHeight / 2)})`, 'text-anchor': 'middle' });
+            yAxisLabel.textContent = 'Test count';
+            svg.appendChild(yAxisLabel);
+
+            const xAxisLabel = createSvgElement('text', { x: margin.left + (chartWidth / 2), y: height - 18, fill: '#cbd5e1', 'font-size': 12, 'text-anchor': 'middle' });
+            xAxisLabel.textContent = 'Completed at';
+            svg.appendChild(xAxisLabel);
+
+            series.forEach(seriesEntry => {
+                const path = createSvgElement('path', {
+                    d: seriesEntry.points
+                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${xPosition(point.completedAt.valueOf())} ${yPosition(point.value)}`)
+                        .join(' '),
+                    fill: 'none',
+                    stroke: seriesEntry.color,
+                    'stroke-width': 3,
+                    'stroke-dasharray': seriesEntry.dashed ? '8 6' : 'none',
+                    'stroke-linecap': 'round',
+                    'stroke-linejoin': 'round'
+                });
+                svg.appendChild(path);
+
+                seriesEntry.points.forEach(point => {
+                    const circle = createSvgElement('circle', {
+                        cx: xPosition(point.completedAt.valueOf()),
+                        cy: yPosition(point.value),
+                        r: 4,
+                        fill: seriesEntry.color
+                    });
+                    const title = createSvgElement('title');
+                    title.textContent = `${seriesEntry.label}\n${point.report.runId}\n${formatHistoryDate(point.report.completedAt)}\n${point.value} tests`;
+                    circle.appendChild(title);
+                    svg.appendChild(circle);
+                });
+            });
+
+            historyChart.appendChild(svg);
+
+            const legend = document.createElement('div');
+            legend.className = 'chart-legend';
+            series.forEach(seriesEntry => {
+                const item = document.createElement('span');
+                item.className = 'chart-legend-item';
+
+                const swatch = document.createElement('span');
+                swatch.className = `chart-swatch${seriesEntry.dashed ? ' failed' : ''}`;
+                swatch.style.borderTopColor = seriesEntry.color;
+
+                const label = document.createElement('span');
+                label.textContent = seriesEntry.label;
+
+                item.append(swatch, label);
+                legend.appendChild(item);
+            });
+
+            historyChart.appendChild(legend);
+        }
 
         async function getJson(url) {
             const response = await fetch(url, { cache: 'no-store' });
@@ -88,6 +273,7 @@
             appendMetric('Passed', String(summary.passedTests));
             appendMetric('Failed', String(summary.failedTests));
             appendMetric('Average pass rate', `${summary.averagePassRate}%`);
+            renderHistoryChart(reports);
 
             runs.replaceChildren();
             reports.forEach(report => {
@@ -163,6 +349,7 @@
             }
 
             metrics.replaceChildren();
+            historyChart.replaceChildren();
             runs.replaceChildren();
             sourceBox.textContent = '';
             errorBox.className = 'error';
