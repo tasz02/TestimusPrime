@@ -307,6 +307,7 @@ jobs:
           print("### Inputs for `Run generated testcases`")
           print()
           print(f"- `test_suite_version_tag`: `{escape_cell(os.environ['VERSION_TAG'])}`")
+          print("- `api_base_url`: Absolute base URL of the API to test")
           print()
           print("Generated suite version tags always end with `-<workflow-run-id>`, so `test_suite_version_tag` is enough for the run workflow.")
           PY
