@@ -197,9 +197,6 @@
                 return;
             }
 
-            const timestamps = orderedReports
-                .map(report => new Date(report.completedAt).valueOf())
-                .filter(timestamp => !Number.isNaN(timestamp));
             const plottedTimestamps = [...new Set(series
                 .flatMap(seriesEntry => seriesEntry.points.map(point => point.completedAt.valueOf())))]
                 .sort((left, right) => left - right);
@@ -207,8 +204,8 @@
                 renderHistoryEmptyState('No suite history available yet.');
                 return;
             }
-            const minTime = Math.min(...timestamps);
-            const maxTime = Math.max(...timestamps);
+            const minTime = plottedTimestamps[0];
+            const maxTime = plottedTimestamps[plottedTimestamps.length - 1];
             const maxValue = Math.max(1, ...series.flatMap(seriesEntry => seriesEntry.points.map(point => point.value)));
             const yTickCount = 4;
             const yStep = Math.max(1, Math.ceil(maxValue / yTickCount));
