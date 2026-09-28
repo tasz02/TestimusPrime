@@ -268,14 +268,19 @@
             const dataTable = document.createElement('div');
             dataTable.className = 'chart-table';
             const dataTableTitle = document.createElement('p');
+            dataTableTitle.id = 'history-data-table-title';
             dataTableTitle.className = 'chart-table-title';
             dataTableTitle.textContent = 'History data table';
             dataTable.appendChild(dataTableTitle);
             const table = document.createElement('table');
+            const caption = document.createElement('caption');
+            caption.textContent = 'Suite passed and failed test counts by run completion time.';
+            table.appendChild(caption);
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             ['Completed', 'Run', 'Suite', 'Passed', 'Failed'].forEach(label => {
                 const header = document.createElement('th');
+                header.scope = 'col';
                 header.textContent = label;
                 headerRow.appendChild(header);
             });
