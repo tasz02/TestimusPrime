@@ -65,6 +65,58 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ steps.resolve_suite.outputs.generation_run_id }}
 
+      - name: Resolve local sample API bootstrap
+        id: sample_api
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+          SUITE_FILE: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/generated-testcases/${{ inputs.test_suite_version_tag }}/${{ inputs.test_suite_version_tag }}.json
+        run: |
+          python <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          suite_file = Path(os.environ["SUITE_FILE"]).resolve()
+          sample_api_path = (workspace / "tests" / "TestimusPrime.Tests" / "Fixtures" / "SampleApi").resolve()
+          sample_api_project = sample_api_path / "SampleApi.csproj"
+
+          with suite_file.open() as handle:
+              suite = json.load(handle)
+
+          repository_path = Path(suite["repositoryPath"]).resolve()
+          parsed_base_url = urlparse(os.environ["API_BASE_URL"])
+          is_localhost = parsed_base_url.hostname in {"127.0.0.1", "localhost"} and parsed_base_url.scheme in {"http", "https"}
+          should_start = is_localhost and repository_path == sample_api_path and sample_api_project.is_file()
+
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write(f"should_start={'true' if should_start else 'false'}\n")
+              if should_start:
+                  output.write(f"project_path={sample_api_project}\n")
+          PY
+
+      - name: Start sample API
+        if: ${{ steps.sample_api.outputs.should_start == 'true' }}
+        run: |
+          dotnet run --project "${{ steps.sample_api.outputs.project_path }}" --urls ${{ inputs.api_base_url }} > /tmp/sample-api.log 2>&1 &
+          echo $! > /tmp/sample-api.pid
+
+      - name: Wait for sample API
+        if: ${{ steps.sample_api.outputs.should_start == 'true' }}
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent ${{ inputs.api_base_url }}/status > /dev/null; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Sample API did not become ready in time."
+          cat /tmp/sample-api.log
+          exit 1
+
       - name: Run saved testcase suite
         id: run_saved_testcase_suite
         continue-on-error: true
@@ -82,7 +134,16 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: generated-suite-run-${{ inputs.test_suite_version_tag }}
-          path: /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
+          path: |
+            /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/generated/${{ inputs.test_suite_version_tag }}
+            /tmp/sample-api.log
+
+      - name: Stop sample API
+        if: always() && steps.sample_api.outputs.should_start == 'true'
+        run: |
+          if [ -f /tmp/sample-api.pid ]; then
+            kill "$(cat /tmp/sample-api.pid)" || true
+          fi
 
       - name: Fail workflow when generated tests fail
         if: always()
