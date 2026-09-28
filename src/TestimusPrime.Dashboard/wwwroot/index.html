@@ -76,6 +76,10 @@
             const timestamp = Date.parse(value ?? '');
             return Number.isNaN(timestamp) ? 0 : timestamp;
         };
+        const formatDateTime = value => {
+            const timestamp = parseTimestamp(value);
+            return timestamp === 0 ? 'Unknown' : new Date(timestamp).toLocaleString();
+        };
 
         function buildTestcaseHistory(reports) {
             const history = new Map();
@@ -140,7 +144,7 @@
                 const row = document.createElement('tr');
 
                 const testCell = document.createElement('td');
-                testCell.append(document.createTextNode(entry.testName));
+                testCell.append(document.createTextNode(entry.testName ?? entry.testCaseId ?? 'Unnamed testcase'));
                 testCell.appendChild(document.createElement('br'));
                 const suites = document.createElement('small');
                 suites.textContent = formatSuites(entry.suites);
@@ -157,7 +161,7 @@
                     createCell(String(entry.failed)),
                     createCell(formatPassRate(entry.passed, entry.totalRuns)),
                     createCell(latestOutcome),
-                    createCell(new Date(entry.latestCompletedAt).toLocaleString())
+                    createCell(formatDateTime(entry.latestCompletedAt))
                 );
 
                 tbody.appendChild(row);
