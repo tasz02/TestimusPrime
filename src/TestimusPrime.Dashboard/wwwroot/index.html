@@ -98,7 +98,7 @@
             historyChart.removeAttribute('aria-describedby');
 
             const orderedReports = reports
-                .filter(report => report?.completedAt)
+                .filter(report => report?.completedAt && !Number.isNaN(new Date(report.completedAt).valueOf()))
                 .slice()
                 .sort((left, right) => new Date(left.completedAt) - new Date(right.completedAt));
 
