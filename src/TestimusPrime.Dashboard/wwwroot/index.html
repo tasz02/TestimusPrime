@@ -91,6 +91,7 @@
                             totalRuns: 1,
                             passed: result.passed ? 1 : 0,
                             failed: result.passed ? 0 : 1,
+                            latestPassed: result.passed,
                             latestOutcome: result.outcome,
                             latestCompletedAt: report.completedAt
                         });
@@ -137,7 +138,7 @@
                 testCell.appendChild(suites);
 
                 const latestOutcome = document.createElement('span');
-                latestOutcome.className = statusClass(entry.failed === 0);
+                latestOutcome.className = statusClass(entry.latestPassed);
                 latestOutcome.textContent = entry.latestOutcome;
 
                 row.append(
