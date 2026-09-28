@@ -292,11 +292,15 @@
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
             svg.appendChild(createSvgElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, stroke: '#64748b', 'stroke-width': 1.5 }));
 
-            const requestedTickCount = Math.max(2, Math.floor(chartWidth / 150));
-            const tickCount = Math.min(plottedTimestamps.length, requestedTickCount);
-            const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) =>
-                Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))))];
-            const tickTimestamps = tickIndexes.map(index => plottedTimestamps[index]);
+            const tickTimestamps = hasSingleTimestamp
+                ? [plottedTimestamps[0]]
+                : (() => {
+                    const requestedTickCount = Math.max(2, Math.floor(chartWidth / 150));
+                    const tickCount = Math.min(plottedTimestamps.length, requestedTickCount);
+                    const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) =>
+                        Math.floor((index * (plottedTimestamps.length - 1)) / Math.max(tickCount - 1, 1))))];
+                    return tickIndexes.map(index => plottedTimestamps[index]);
+                })();
 
             tickTimestamps.forEach(timestamp => {
                 const x = xPosition(timestamp);
