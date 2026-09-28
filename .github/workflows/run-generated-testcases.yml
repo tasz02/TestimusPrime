@@ -31,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Resolve generated testcase artifact
         id: resolve_suite
         env:
@@ -45,9 +48,6 @@ jobs:
             echo "artifact_name=${artifact_name}"
             echo "generation_run_id=${run_id}"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
