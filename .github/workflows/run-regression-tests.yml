@@ -8,10 +8,6 @@ on:
         required: false
         default: "30"
 
-concurrency:
-  group: dashboard-pages-publish
-  cancel-in-progress: false
-
 permissions:
   contents: write
   pages: write
@@ -20,7 +16,7 @@ permissions:
 jobs:
   run-regression-suite:
     outputs:
-      dashboard_pages_ready: ${{ steps.mark_dashboard_pages_ready.outputs.ready }}
+      run_artifacts_ready: ${{ steps.mark_run_artifacts_ready.outputs.ready }}
     runs-on: ubuntu-latest
 
     steps:
@@ -66,6 +62,7 @@ jobs:
           --timeout-seconds=${{ inputs.timeout_seconds }}
 
       - name: Upload regression suite artifacts
+        id: upload_run_artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -74,84 +71,9 @@ jobs:
             /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression
             /tmp/sample-api.log
 
-      - name: Checkout existing dashboard site
-        if: always()
-        continue-on-error: true
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-          path: .pages-current
-          fetch-depth: 1
-
-      - name: Initialize dashboard site history
-        if: always()
-        run: |
-          if [ ! -d /home/runner/work/TestimusPrime/TestimusPrime/.pages-current/.git ]; then
-            rm -rf /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
-            mkdir -p /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
-          fi
-
-      - name: Build static dashboard site
-        id: build_dashboard_site
-        if: always()
-        run: |
-          python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
-            --reports-directory /home/runner/work/TestimusPrime/TestimusPrime/artifacts/testruns/regression \
-            --existing-site /home/runner/work/TestimusPrime/TestimusPrime/.pages-current \
-            --output-site /tmp/testimusprime-pages-output \
-            --assets-directory /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot \
-            --history-limit 20
-
-      - name: Publish dashboard site
-        id: publish_dashboard_site
-        if: always()
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
-          if [ -d "${pages_dir}/.git" ]; then
-            cd "${pages_dir}"
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            git fetch origin gh-pages
-            git checkout gh-pages
-            git reset --hard origin/gh-pages
-          else
-            rm -rf "${pages_dir}"
-            mkdir -p "${pages_dir}"
-            cd "${pages_dir}"
-            git init
-            git checkout -B gh-pages
-            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          fi
-
-          rsync -a --delete /tmp/testimusprime-pages-output/ "${pages_dir}/"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --all
-
-          if git diff --cached --quiet; then
-            echo "Dashboard site content is unchanged."
-            exit 0
-          fi
-
-          git commit -m "Update dashboard site from regression suite ${GITHUB_RUN_ID}"
-          git push origin gh-pages
-
-      - name: Configure GitHub Pages
-        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
-        uses: actions/configure-pages@v5
-
-      - name: Upload dashboard Pages artifact
-        id: upload_dashboard_pages_artifact
-        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: /tmp/testimusprime-pages-output
-
-      - name: Mark dashboard Pages artifact ready
-        id: mark_dashboard_pages_ready
-        if: ${{ always() && steps.upload_dashboard_pages_artifact.outcome == 'success' }}
+      - name: Mark run artifacts ready
+        id: mark_run_artifacts_ready
+        if: ${{ always() && steps.upload_run_artifacts.outcome == 'success' }}
         run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Stop sample API
@@ -197,14 +119,92 @@ jobs:
           print("Regression suite execution completed with no failed tests.")
           PY
 
-  deploy-dashboard:
-    if: ${{ always() && needs.run-regression-suite.outputs.dashboard_pages_ready == 'true' }}
+  publish-dashboard:
+    if: ${{ always() && needs.run-regression-suite.outputs.run_artifacts_ready == 'true' }}
     needs: run-regression-suite
+    concurrency:
+      group: dashboard-pages-publish
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download regression suite artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: regression-suite-artifacts
+          path: /home/runner/work/TestimusPrime/TestimusPrime/.dashboard-input
+
+      - name: Checkout existing dashboard site
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: .pages-current
+          fetch-depth: 1
+
+      - name: Initialize dashboard site history
+        run: |
+          if [ ! -d /home/runner/work/TestimusPrime/TestimusPrime/.pages-current/.git ]; then
+            rm -rf /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
+            mkdir -p /home/runner/work/TestimusPrime/TestimusPrime/.pages-current
+          fi
+
+      - name: Build static dashboard site
+        run: |
+          python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
+            --reports-directory /home/runner/work/TestimusPrime/TestimusPrime/.dashboard-input/artifacts/testruns/regression \
+            --existing-site /home/runner/work/TestimusPrime/TestimusPrime/.pages-current \
+            --output-site /tmp/testimusprime-pages-output \
+            --assets-directory /home/runner/work/TestimusPrime/TestimusPrime/src/TestimusPrime.Dashboard/wwwroot \
+            --history-limit 20
+
+      - name: Publish dashboard site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pages_dir="/home/runner/work/TestimusPrime/TestimusPrime/.pages-current"
+          if [ -d "${pages_dir}/.git" ]; then
+            cd "${pages_dir}"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git fetch origin gh-pages
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
+          else
+            rm -rf "${pages_dir}"
+            mkdir -p "${pages_dir}"
+            cd "${pages_dir}"
+            git init
+            git checkout -B gh-pages
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+
+          rsync -a --delete /tmp/testimusprime-pages-output/ "${pages_dir}/"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+
+          if git diff --cached --quiet; then
+            echo "Dashboard site content is unchanged."
+            exit 0
+          fi
+
+          git commit -m "Update dashboard site from regression suite ${GITHUB_RUN_ID}"
+          git push origin gh-pages
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload dashboard Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/testimusprime-pages-output
+
       - name: Deploy dashboard to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
