@@ -1,0 +1,339 @@
+{
+  "runId": "9314bdff6f824802bea25076e7f2c958",
+  "repositoryPath": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi",
+  "apiBaseUrl": "http://127.0.0.1:5050",
+  "triggerEvent": 1,
+  "startedAt": "2026-09-28T15:10:22.1481224+00:00",
+  "completedAt": "2026-09-28T15:10:22.2841084+00:00",
+  "analysis": {
+    "repositoryPath": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi",
+    "analyzedAt": "2026-09-28T15:10:22.1407348+00:00",
+    "endpoints": [
+      {
+        "id": "controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:9:HttpGet:Health",
+        "httpMethod": "GET",
+        "route": "/api/Orders/health",
+        "sourceType": 0,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/OrdersController.cs",
+        "sourceLine": 9,
+        "groupName": "OrdersController",
+        "actionName": "Health"
+      },
+      {
+        "id": "controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create",
+        "httpMethod": "POST",
+        "route": "/api/Orders",
+        "sourceType": 0,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/OrdersController.cs",
+        "sourceLine": 12,
+        "groupName": "OrdersController",
+        "actionName": "Create"
+      },
+      {
+        "id": "minimal:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_Program.cs:6:Get",
+        "httpMethod": "GET",
+        "route": "/status",
+        "sourceType": 1,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/Program.cs",
+        "sourceLine": 6,
+        "groupName": "Program",
+        "actionName": "Get"
+      }
+    ],
+    "notes": [
+      "Detected 3 endpoints across 2 C# files."
+    ]
+  },
+  "generatedTestCases": [
+    {
+      "id": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:9:HttpGet:Health",
+      "name": "GET /api/Orders/health",
+      "endpoint": {
+        "id": "controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:9:HttpGet:Health",
+        "httpMethod": "GET",
+        "route": "/api/Orders/health",
+        "sourceType": 0,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/OrdersController.cs",
+        "sourceLine": 9,
+        "groupName": "OrdersController",
+        "actionName": "Health"
+      },
+      "suites": [
+        0,
+        1
+      ],
+      "relativePath": "/api/Orders/health",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": null,
+      "expectedStatusCodes": [
+        200,
+        201,
+        202,
+        204
+      ],
+      "allowAnySuccessfulStatus": true,
+      "rationale": "Smoke coverage for a critical or safe endpoint; expects a successful 2xx response as an availability signal."
+    },
+    {
+      "id": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create",
+      "name": "POST /api/Orders",
+      "endpoint": {
+        "id": "controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create",
+        "httpMethod": "POST",
+        "route": "/api/Orders",
+        "sourceType": 0,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/OrdersController.cs",
+        "sourceLine": 12,
+        "groupName": "OrdersController",
+        "actionName": "Create"
+      },
+      "suites": [
+        1
+      ],
+      "relativePath": "/api/Orders",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": "{}",
+      "expectedStatusCodes": [
+        200,
+        201,
+        202,
+        204
+      ],
+      "allowAnySuccessfulStatus": false,
+      "rationale": "Regression coverage for endpoint contract verification with a 2xx-family expectation."
+    },
+    {
+      "id": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create:invalid-body",
+      "name": "POST /api/Orders rejects malformed JSON",
+      "endpoint": {
+        "id": "controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create",
+        "httpMethod": "POST",
+        "route": "/api/Orders",
+        "sourceType": 0,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/OrdersController.cs",
+        "sourceLine": 12,
+        "groupName": "OrdersController",
+        "actionName": "Create"
+      },
+      "suites": [
+        1
+      ],
+      "relativePath": "/api/Orders",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": "{",
+      "expectedStatusCodes": [
+        400
+      ],
+      "allowAnySuccessfulStatus": false,
+      "rationale": "Negative regression coverage that sends malformed JSON to verify the API returns the expected client error."
+    },
+    {
+      "id": "test:minimal:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_Program.cs:6:Get",
+      "name": "GET /status",
+      "endpoint": {
+        "id": "minimal:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_Program.cs:6:Get",
+        "httpMethod": "GET",
+        "route": "/status",
+        "sourceType": 1,
+        "sourceFile": "/home/runner/work/TestimusPrime/TestimusPrime/tests/TestimusPrime.Tests/Fixtures/SampleApi/Program.cs",
+        "sourceLine": 6,
+        "groupName": "Program",
+        "actionName": "Get"
+      },
+      "suites": [
+        0,
+        1
+      ],
+      "relativePath": "/status",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": null,
+      "expectedStatusCodes": [
+        200,
+        201,
+        202,
+        204
+      ],
+      "allowAnySuccessfulStatus": true,
+      "rationale": "Smoke coverage for a critical or safe endpoint; expects a successful 2xx response as an availability signal."
+    }
+  ],
+  "results": [
+    {
+      "testCaseId": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:9:HttpGet:Health",
+      "testName": "GET /api/Orders/health",
+      "suites": [
+        0,
+        1
+      ],
+      "passed": true,
+      "statusCode": 200,
+      "outcome": "Passed",
+      "failureReason": null,
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5050/api/Orders/health",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "body": null,
+        "sentAt": "2026-09-28T15:10:22.1556853+00:00"
+      },
+      "response": {
+        "statusCode": 200,
+        "headers": {
+          "Date": "Mon, 28 Sep 2026 15:10:22 GMT",
+          "Server": "Kestrel",
+          "Content-Length": "0"
+        },
+        "body": "",
+        "receivedAt": "2026-09-28T15:10:22.2178966+00:00",
+        "durationMilliseconds": 59,
+        "error": null
+      }
+    },
+    {
+      "testCaseId": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create",
+      "testName": "POST /api/Orders",
+      "suites": [
+        1
+      ],
+      "passed": true,
+      "statusCode": 201,
+      "outcome": "Passed",
+      "failureReason": null,
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5050/api/Orders",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "body": "{}",
+        "sentAt": "2026-09-28T15:10:22.218565+00:00"
+      },
+      "response": {
+        "statusCode": 201,
+        "headers": {
+          "Date": "Mon, 28 Sep 2026 15:10:22 GMT",
+          "Server": "Kestrel",
+          "Location": "/api/orders/1",
+          "Transfer-Encoding": "chunked",
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": "{\"id\":1}",
+        "receivedAt": "2026-09-28T15:10:22.261075+00:00",
+        "durationMilliseconds": 41,
+        "error": null
+      }
+    },
+    {
+      "testCaseId": "test:controller:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_OrdersController.cs:12:HttpPost:Create:invalid-body",
+      "testName": "POST /api/Orders rejects malformed JSON",
+      "suites": [
+        1
+      ],
+      "passed": false,
+      "statusCode": 201,
+      "outcome": "Failed",
+      "failureReason": "Expected one of [400] but received 201.",
+      "request": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5050/api/Orders",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "body": "{",
+        "sentAt": "2026-09-28T15:10:22.261123+00:00"
+      },
+      "response": {
+        "statusCode": 201,
+        "headers": {
+          "Date": "Mon, 28 Sep 2026 15:10:22 GMT",
+          "Server": "Kestrel",
+          "Location": "/api/orders/1",
+          "Transfer-Encoding": "chunked",
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": "{\"id\":1}",
+        "receivedAt": "2026-09-28T15:10:22.2655779+00:00",
+        "durationMilliseconds": 2,
+        "error": null
+      }
+    },
+    {
+      "testCaseId": "test:minimal:_home_runner_work_TestimusPrime_TestimusPrime_tests_TestimusPrime.Tests_Fixtures_SampleApi_Program.cs:6:Get",
+      "testName": "GET /status",
+      "suites": [
+        0,
+        1
+      ],
+      "passed": true,
+      "statusCode": 200,
+      "outcome": "Passed",
+      "failureReason": null,
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5050/status",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "body": null,
+        "sentAt": "2026-09-28T15:10:22.2655905+00:00"
+      },
+      "response": {
+        "statusCode": 200,
+        "headers": {
+          "Date": "Mon, 28 Sep 2026 15:10:22 GMT",
+          "Server": "Kestrel",
+          "Content-Length": "0"
+        },
+        "body": "",
+        "receivedAt": "2026-09-28T15:10:22.2662625+00:00",
+        "durationMilliseconds": 0,
+        "error": null
+      }
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "passRate": 75.0,
+    "suites": [
+      {
+        "suite": 0,
+        "total": 2,
+        "passed": 2,
+        "failed": 0,
+        "passRate": 100
+      },
+      {
+        "suite": 1,
+        "total": 4,
+        "passed": 3,
+        "failed": 1,
+        "passRate": 75.0
+      }
+    ],
+    "statusCodeDistribution": {
+      "200": 2,
+      "201": 2
+    },
+    "failingTests": [
+      "POST /api/Orders rejects malformed JSON"
+    ],
+    "slowestTests": [
+      "GET /api/Orders/health (59 ms)",
+      "POST /api/Orders (41 ms)",
+      "POST /api/Orders rejects malformed JSON (2 ms)",
+      "GET /status (0 ms)"
+    ]
+  }
+}
