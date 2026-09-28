@@ -131,10 +131,11 @@ jobs:
 
               passed = as_int(summary.get("passed"))
               failed = as_int(summary.get("failed"))
-              reported_total = as_int(summary.get("total"))
+              raw_total = summary.get("total")
+              reported_total = as_int(raw_total)
               minimum_total = passed + failed
               total = reported_total if reported_total >= minimum_total else minimum_total
-              if reported_total and reported_total < minimum_total:
+              if raw_total is not None and reported_total < minimum_total:
                   parse_errors.append(
                       f"{report_file.name}: summary total {reported_total} did not match passed + failed ({total}); using {total}."
                   )
