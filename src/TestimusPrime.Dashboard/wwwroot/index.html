@@ -91,7 +91,7 @@
                         existing.totalRuns += 1;
                         existing.passed += result.passed ? 1 : 0;
                         existing.failed += result.passed ? 0 : 1;
-                        if (parseTimestamp(report.completedAt) >= parseTimestamp(existing.latestCompletedAt)) {
+                        if (parseTimestamp(report.completedAt) > parseTimestamp(existing.latestCompletedAt)) {
                             existing.latestPassed = result.passed;
                             existing.latestOutcome = result.outcome;
                             existing.latestCompletedAt = report.completedAt;
