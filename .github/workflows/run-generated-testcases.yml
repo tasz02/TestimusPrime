@@ -233,7 +233,7 @@ jobs:
           print("| --- | --- |")
           print(f"| Version tag | `{escape_cell(os.environ['VERSION_TAG'])}` |")
           print(f"| API base URL | `{escape_cell(os.environ['API_BASE_URL'])}` |")
-          print(f"| Requested suite | `{escape_cell(os.environ['TRIGGER_EVENT'])}` |")
+          print(f"| Trigger event | `{escape_cell(os.environ['TRIGGER_EVENT'])}` |")
           print(f"| Execution step outcome | `{escape_cell(os.environ['TEST_STEP_OUTCOME'])}` |")
           print(f"| Report directory | `{escape_cell(report_directory)}` |")
           print()
