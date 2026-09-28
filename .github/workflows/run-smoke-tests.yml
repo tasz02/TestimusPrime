@@ -93,6 +93,7 @@ jobs:
           fi
 
       - name: Build static dashboard site
+        id: build_dashboard_site
         if: always()
         run: |
           python /home/runner/work/TestimusPrime/TestimusPrime/.github/scripts/build_dashboard_site.py \
@@ -103,6 +104,7 @@ jobs:
             --history-limit 20
 
       - name: Publish dashboard site
+        id: publish_dashboard_site
         if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -138,17 +140,17 @@ jobs:
           git push origin gh-pages
 
       - name: Configure GitHub Pages
-        if: always()
+        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
         uses: actions/configure-pages@v5
 
       - name: Upload dashboard Pages artifact
-        if: always()
+        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: /tmp/testimusprime-pages-output
 
       - name: Deploy dashboard to GitHub Pages
-        if: always()
+        if: ${{ always() && steps.build_dashboard_site.outcome == 'success' && steps.publish_dashboard_site.outcome == 'success' }}
         id: deployment
         uses: actions/deploy-pages@v5
 
