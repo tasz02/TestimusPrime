@@ -219,8 +219,30 @@
             const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
             const maxSeriesSpread = 30;
             const maxSeriesOffsetStep = 10;
-            const seriesOffsetStep = series.length > 1 ? Math.min(maxSeriesOffsetStep, maxSeriesSpread / (series.length - 1)) : 0;
-            const seriesCenter = (series.length - 1) / 2;
+            const overlappingPoints = new Map();
+            const pointOffsets = new Map();
+            series.forEach((seriesEntry, seriesIndex) => {
+                seriesEntry.points.forEach((point, pointIndex) => {
+                    const overlapKey = `${point.completedAt.valueOf()}:${point.value}`;
+                    if (!overlappingPoints.has(overlapKey)) {
+                        overlappingPoints.set(overlapKey, []);
+                    }
+
+                    overlappingPoints.get(overlapKey).push({ seriesIndex, pointIndex });
+                });
+            });
+            overlappingPoints.forEach(group => {
+                if (group.length < 2) {
+                    return;
+                }
+
+                const seriesOffsetStep = Math.min(maxSeriesOffsetStep, maxSeriesSpread / (group.length - 1));
+                const groupCenter = (group.length - 1) / 2;
+                group.forEach((entry, entryIndex) => {
+                    pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, (entryIndex - groupCenter) * seriesOffsetStep);
+                });
+            });
+            const getPointOffset = (seriesIndex, pointIndex) => pointOffsets.get(`${seriesIndex}:${pointIndex}`) ?? 0;
             const pointXPosition = (timestamp, seriesOffset = 0) => {
                 const x = xPosition(timestamp) + seriesOffset;
                 return Math.max(margin.left, Math.min(width - margin.right, x));
@@ -284,10 +306,9 @@
             svg.appendChild(xAxisLabel);
 
             series.forEach((seriesEntry, seriesIndex) => {
-                const seriesOffset = (seriesIndex - seriesCenter) * seriesOffsetStep;
                 const pathAttributes = {
                     d: seriesEntry.points
-                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${pointXPosition(point.completedAt.valueOf(), seriesOffset)} ${yPosition(point.value)}`)
+                        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'} ${pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex))} ${yPosition(point.value)}`)
                         .join(' '),
                     fill: 'none',
                     stroke: seriesEntry.color,
@@ -302,9 +323,9 @@
                 const path = createSvgElement('path', pathAttributes);
                 svg.appendChild(path);
 
-                seriesEntry.points.forEach(point => {
+                seriesEntry.points.forEach((point, pointIndex) => {
                     const circle = createSvgElement('circle', {
-                        cx: pointXPosition(point.completedAt.valueOf(), seriesOffset),
+                        cx: pointXPosition(point.completedAt.valueOf(), getPointOffset(seriesIndex, pointIndex)),
                         cy: yPosition(point.value),
                         r: 3.5,
                         fill: seriesEntry.color
