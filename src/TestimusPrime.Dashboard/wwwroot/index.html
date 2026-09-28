@@ -219,6 +219,8 @@
             const yPosition = value => margin.top + chartHeight - ((value / yMax) * chartHeight);
             const maxSeriesSpread = 30;
             const maxSeriesOffsetStep = 10;
+            const seriesOffsetStep = series.length > 1 ? Math.min(maxSeriesOffsetStep, maxSeriesSpread / (series.length - 1)) : 0;
+            const seriesCenter = (series.length - 1) / 2;
             const overlappingPoints = new Map();
             const pointOffsets = new Map();
             series.forEach((seriesEntry, seriesIndex) => {
@@ -236,11 +238,12 @@
                     return;
                 }
 
-                const seriesOffsetStep = Math.min(maxSeriesOffsetStep, maxSeriesSpread / (group.length - 1));
-                const groupCenter = (group.length - 1) / 2;
-                group.forEach((entry, entryIndex) => {
-                    pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, (entryIndex - groupCenter) * seriesOffsetStep);
-                });
+                group
+                    .slice()
+                    .sort((left, right) => left.seriesIndex - right.seriesIndex || left.pointIndex - right.pointIndex)
+                    .forEach(entry => {
+                        pointOffsets.set(`${entry.seriesIndex}:${entry.pointIndex}`, (entry.seriesIndex - seriesCenter) * seriesOffsetStep);
+                    });
             });
             const getPointOffset = (seriesIndex, pointIndex) => pointOffsets.get(`${seriesIndex}:${pointIndex}`) ?? 0;
             const pointXPosition = (timestamp, seriesOffset = 0) => {
