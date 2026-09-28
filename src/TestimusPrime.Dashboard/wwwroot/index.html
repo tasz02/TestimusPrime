@@ -13,7 +13,7 @@
         .chart-legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin-top: 1rem; font-size: 0.9rem; color: #cbd5e1; }
         .chart-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
         .chart-swatch { width: 1.75rem; height: 0; border-top-width: 3px; border-top-style: solid; }
-        .chart-swatch.failed { border-top-style: dashed; }
+        .chart-swatch-dashed { border-top-style: dashed; }
         .chart-description { color: #cbd5e1; margin: 0 0 1rem; }
         .chart-empty { color: #94a3b8; margin: 0; }
         .chart-table { margin-top: 1rem; }
@@ -76,6 +76,14 @@
             return element;
         };
 
+        const renderHistoryEmptyState = message => {
+            const empty = document.createElement('p');
+            empty.id = 'history-chart-description';
+            empty.className = 'chart-empty';
+            empty.textContent = message;
+            historyChart.appendChild(empty);
+        };
+
         const createCell = content => {
             const cell = document.createElement('td');
             if (typeof content === 'string') {
@@ -107,11 +115,7 @@
                     : []))];
 
             if (orderedReports.length === 0 || suiteNames.length === 0) {
-                const empty = document.createElement('p');
-                empty.id = 'history-chart-description';
-                empty.className = 'chart-empty';
-                empty.textContent = 'No suite history available yet.';
-                historyChart.appendChild(empty);
+                renderHistoryEmptyState('No suite history available yet.');
                 return;
             }
 
@@ -148,11 +152,7 @@
             }).filter(seriesEntry => seriesEntry.points.length > 0);
 
             if (series.length === 0) {
-                const empty = document.createElement('p');
-                empty.id = 'history-chart-description';
-                empty.className = 'chart-empty';
-                empty.textContent = 'No suite history available yet.';
-                historyChart.appendChild(empty);
+                renderHistoryEmptyState('No suite history available yet.');
                 return;
             }
 
@@ -264,7 +264,7 @@
                 item.className = 'chart-legend-item';
 
                 const swatch = document.createElement('span');
-                swatch.className = `chart-swatch${seriesEntry.dashed ? ' failed' : ''}`;
+                swatch.className = `chart-swatch${seriesEntry.dashed ? ' chart-swatch-dashed' : ''}`;
                 swatch.style.borderTopColor = seriesEntry.color;
 
                 const label = document.createElement('span');
