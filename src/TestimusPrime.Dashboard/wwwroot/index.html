@@ -249,10 +249,15 @@
                 const baseTimestamp = series[orderedGroup[0].seriesIndex].points[orderedGroup[0].pointIndex].completedAt.valueOf();
                 const timestampIndex = timestampIndexes.get(baseTimestamp) ?? 0;
                 const baseX = xPosition(baseTimestamp);
+                const singleTimestampSpread = 18;
                 const previousTimestamp = timestampIndex > 0 ? plottedTimestamps[timestampIndex - 1] : null;
                 const nextTimestamp = timestampIndex < plottedTimestamps.length - 1 ? plottedTimestamps[timestampIndex + 1] : null;
-                const leftBoundary = previousTimestamp === null ? margin.left : (xPosition(previousTimestamp) + baseX) / 2;
-                const rightBoundary = nextTimestamp === null ? width - margin.right : (baseX + xPosition(nextTimestamp)) / 2;
+                const leftBoundary = hasSingleTimestamp
+                    ? baseX - (singleTimestampSpread / 2)
+                    : previousTimestamp === null ? margin.left : (xPosition(previousTimestamp) + baseX) / 2;
+                const rightBoundary = hasSingleTimestamp
+                    ? baseX + (singleTimestampSpread / 2)
+                    : nextTimestamp === null ? width - margin.right : (baseX + xPosition(nextTimestamp)) / 2;
                 const rawOffsets = orderedGroup.map((entry, entryIndex) => ({ entry, offset: (entryIndex - groupCenter) * groupOffsetStep }));
                 const maxLeftOffset = Math.abs(Math.min(0, ...rawOffsets.map(item => item.offset)));
                 const maxRightOffset = Math.max(0, ...rawOffsets.map(item => item.offset));
