@@ -105,7 +105,7 @@ Example `.github/testimusprime.json` in a consumer API repository:
 }
 ```
 
-Without `--config`, the tool automatically loads `testimusprime.json` from the current working directory when present. Configuration-relative paths (`repo`, `output`, and `test-suite`) resolve from the **configuration file's folder**, not the current working directory. CLI arguments override configuration values; relative CLI paths also resolve from the configuration folder when a configuration file is loaded, otherwise from the current working directory. Use absolute CLI paths when running automation. `test-suite` is needed only for `ExecuteGenerated`, and `version-tag` names the suite created by `Generate`. `trigger=Commit` selects smoke tests; `trigger=PullRequest` selects regression tests.
+Without `--config`, the tool automatically loads `testimusprime.json` from the current working directory when present. Configuration-relative paths (`repo`, `output`, and `test-suite`) resolve from the **configuration file's folder**, not the current working directory. CLI arguments override configuration values; relative CLI paths also resolve from the configuration folder when a configuration file is loaded. Without configuration, relative CLI paths resolve from the current working directory except for the legacy `--output` behavior: it resolves from `--repo`, or from the saved suite's directory in `ExecuteGenerated` mode. Use absolute CLI paths when running automation. `test-suite` is needed only for `ExecuteGenerated`, and `version-tag` names the suite created by `Generate`. `trigger=Commit` selects smoke tests; `trigger=PullRequest` selects regression tests.
 
 CLI options:
 

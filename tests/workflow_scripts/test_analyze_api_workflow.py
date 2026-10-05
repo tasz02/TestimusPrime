@@ -33,7 +33,7 @@ STAGE = inline_python("Stage execution reports and generated suites separately")
 
 class AnalyzeApiWorkflowTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="workflow-tests-", dir=REPOSITORY)
+        self.temporary = tempfile.TemporaryDirectory(prefix="workflow-tests-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.workspace = self.root / "consumer"
