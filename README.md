@@ -105,7 +105,7 @@ Example `.github/testimusprime.json` in a consumer API repository:
 }
 ```
 
-Configuration-relative paths (`repo`, `output`, and `test-suite`) resolve from the **configuration file's folder**, not the current working directory. CLI arguments override configuration values; use absolute CLI paths when running automation. `test-suite` is needed only for `ExecuteGenerated`, and `version-tag` names the suite created by `Generate`. `trigger=Commit` selects smoke tests; `trigger=PullRequest` selects regression tests.
+Without `--config`, the tool automatically loads `testimusprime.json` from the current working directory when present. Configuration-relative paths (`repo`, `output`, and `test-suite`) resolve from the **configuration file's folder**, not the current working directory. CLI arguments override configuration values; relative CLI paths also resolve from the configuration folder when a configuration file is loaded, otherwise from the current working directory. Use absolute CLI paths when running automation. `test-suite` is needed only for `ExecuteGenerated`, and `version-tag` names the suite created by `Generate`. `trigger=Commit` selects smoke tests; `trigger=PullRequest` selects regression tests.
 
 CLI options:
 
@@ -132,7 +132,7 @@ testimusprime --mode=PublishDashboard --config=.github/testimusprime.json \
   --output-site=/absolute/path/to/fresh-site
 ```
 
-`--reports-directory`, `--existing-site`, and `--output-site` are publisher-specific options. Use a fresh output directory separate from the existing site and reports. The publisher merges retained report history, applies `history-limit` and `dashboard-subdirectory`, and preserves unrelated content from the existing site. Omit `existing-site` for a first publication.
+`--reports-directory`, `--existing-site`, and `--output-site` are publisher-specific options. Use a fresh output directory separate from the existing site and reports. The publisher merges retained report history, applies `history-limit` and `dashboard-subdirectory`, and preserves unrelated content from the existing site. For a first publication, point `existing-site` at an empty directory.
 
 ## Reusable GitHub Actions workflow
 
@@ -185,7 +185,7 @@ Inputs:
 
 For a localhost API, provide its startup command and readiness endpoint as above. The workflow stops that command's process group even when analysis fails. Keep the server in the foreground; do not daemonize it or escape its process group. Startup logs are never included in report artifacts. Alternatively, omit both startup inputs and set `api-base-url` (or the configuration key) to an API reachable from the GitHub-hosted runner. `localhost` without a startup command does not refer to your workstation. Startup commands must be trusted literals, not interpolated PR titles, branch names, or other untrusted event text.
 
-The workflow forces a fresh, dedicated absolute report directory for each invocation, ignoring configured `output`. It uploads only execution-report JSON, not API logs or generated suites. Generation-only runs have no execution reports and **do not publish a dashboard**. Failed tests still fail the analysis job, while saved reports are uploaded and, if opted in on a trusted event, published by a separate job.
+The workflow forces a fresh, dedicated absolute output directory for each invocation, ignoring configured `output`. It stages execution-report JSON and generated-suite JSON separately, uploading them as uniquely named `testimusprime-reports-…` and `testimusprime-suites-…` artifacts whenever each exists, even after execution fails. API startup logs are never uploaded. Download a suite artifact to reuse its JSON with `ExecuteGenerated`. Generation-only runs retain their suite artifact but have no execution reports and **do not publish a dashboard**. Failed tests still fail the analysis job, while saved reports are uploaded and, if opted in on a trusted event, published by a separate job.
 
 The analysis job has read-only repository permissions. Only the separate publisher receives `contents: write`, `pages: write`, and `id-token: write`. Publication is allowed exclusively for `push`, `workflow_dispatch`, and `schedule`, never PR events (including `pull_request_target`). Treat commits/configuration on these publication paths and the package/workflow versions as trusted; restrict repository write access and protect publication branches and the `github-pages` environment as appropriate. Callers must grant the publisher's permissions; reusable workflows cannot elevate the caller's token.
 
@@ -193,7 +193,7 @@ Publication reads the same caller commit's configuration, checks out the consume
 
 ### Publication and artifact privacy
 
-**Authentication and automatic redaction are not implemented.** Reports and dashboards can contain request/response bodies, URLs, headers, test data, and source paths. GitHub Pages may expose them publicly, and workflow artifacts expose them to anyone with artifact access even when Pages publication is disabled. Use sanitized, non-sensitive test data and non-production APIs; remove credentials, personal information, and secrets **before executing/uploading reports**, not merely before deploying Pages. Do not enable publication unless that exposure is acceptable.
+**Authentication and automatic redaction are not implemented.** Reports, generated suites, and dashboards can contain request/response bodies, URLs, headers, test data, and source paths. GitHub Pages may expose reports publicly, and workflow artifacts expose their contents to anyone with artifact access even when Pages publication is disabled. Use sanitized, non-sensitive test data and non-production APIs; remove credentials, personal information, and secrets **before generating/executing/uploading artifacts**, not merely before deploying Pages. Do not enable publication unless that exposure is acceptable.
 
 ## Repository-local GitHub Actions
 

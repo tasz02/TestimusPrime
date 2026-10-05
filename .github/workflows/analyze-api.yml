@@ -87,13 +87,16 @@ jobs:
               raise SystemExit("Invalid trigger override.")
           if os.environ["API_START_COMMAND"] and not os.environ["API_READY_URL"]:
               raise SystemExit("api-ready-url is required with api-start-command.")
-          root = pathlib.Path(tempfile.mkdtemp(prefix=".testimusprime-run-", dir=workspace))
-          for name in ("reports", "artifact"):
+          runner_temp = pathlib.Path(os.environ["RUNNER_TEMP"]).resolve()
+          root = pathlib.Path(tempfile.mkdtemp(prefix="testimusprime-run-", dir=runner_temp))
+          for name in ("reports", "artifact", "suites"):
               (root / name).mkdir()
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"config={config}\nroot={root}\nreports={root / 'reports'}\n")
               output.write(f"artifact={root / 'artifact'}\n")
+              output.write(f"suites={root / 'suites'}\n")
               output.write(f"artifact-name=testimusprime-reports-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}-{root.name}\n")
+              output.write(f"suite-artifact-name=testimusprime-suites-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}-{root.name}\n")
           PY
 
       - name: Install published tool
@@ -158,12 +161,13 @@ jobs:
                   api.wait()
           PY
 
-      - name: Select execution reports only
+      - name: Stage execution reports and generated suites separately
         id: reports
         if: ${{ always() && steps.paths.outcome == 'success' }}
         env:
           REPORTS_DIRECTORY: ${{ steps.paths.outputs.reports }}
           ARTIFACT_DIRECTORY: ${{ steps.paths.outputs.artifact }}
+          SUITE_ARTIFACT_DIRECTORY: ${{ steps.paths.outputs.suites }}
         shell: bash
         run: |
           python <<'PY'
@@ -173,21 +177,30 @@ jobs:
           import shutil
 
           count = 0
+          suites = 0
           for path in pathlib.Path(os.environ["REPORTS_DIRECTORY"]).glob("*.json"):
               if path.is_symlink() or not path.is_file():
                   continue
               try:
-                  report = json.loads(path.read_text())
+                  document = json.loads(path.read_text())
               except (ValueError, OSError):
                   continue
-              if not isinstance(report, dict) or not report.get("runId") or not isinstance(report.get("summary"), dict) or not isinstance(report.get("results"), list):
+              if not isinstance(document, dict):
                   continue
-              shutil.copyfile(path, pathlib.Path(os.environ["ARTIFACT_DIRECTORY"]) / path.name)
-              count += 1
+              if document.get("runId") and isinstance(document.get("summary"), dict) and isinstance(document.get("results"), list):
+                  shutil.copyfile(path, pathlib.Path(os.environ["ARTIFACT_DIRECTORY"]) / path.name)
+                  count += 1
+              elif (isinstance(document.get("versionTag"), str) and document["versionTag"].strip()
+                    and isinstance(document.get("testCases"), list)
+                    and all(isinstance(case, dict) for case in document["testCases"])
+                    and isinstance(document.get("analysis"), dict)):
+                  shutil.copyfile(path, pathlib.Path(os.environ["SUITE_ARTIFACT_DIRECTORY"]) / path.name)
+                  suites += 1
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"ready={'true' if count else 'false'}\n")
+              output.write(f"suites-ready={'true' if suites else 'false'}\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write(f"Saved {count} execution report(s). Generation-only runs do not publish a dashboard.\n")
+              summary.write(f"Saved {count} execution report(s) and {suites} generated suite(s) in separate artifacts. Generation-only runs do not publish a dashboard.\n")
           PY
 
       - name: Upload reports even when tests fail (never API startup logs)
@@ -197,6 +210,14 @@ jobs:
         with:
           name: ${{ steps.paths.outputs.artifact-name }}
           path: ${{ steps.paths.outputs.artifact }}/*.json
+          if-no-files-found: error
+
+      - name: Upload generated suites even when a later step fails
+        if: ${{ always() && steps.reports.outputs.suites-ready == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.paths.outputs.suite-artifact-name }}
+          path: ${{ steps.paths.outputs.suites }}/*.json
           if-no-files-found: error
 
   publish:
@@ -244,7 +265,7 @@ jobs:
           config = (workspace / os.environ["CONFIG_PATH"]).resolve()
           if not config.is_relative_to(workspace) or not config.is_file():
               raise SystemExit("Configuration must remain inside the caller checkout.")
-          root = pathlib.Path(tempfile.mkdtemp(prefix=".testimusprime-publish-", dir=workspace))
+          root = pathlib.Path(tempfile.mkdtemp(prefix="testimusprime-publish-", dir=workspace))
           (root / "history").mkdir()
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"config={config}\nreports={root / 'reports'}\nsite={root / 'site'}\n")
@@ -317,7 +338,7 @@ jobs:
           rsync -a --delete --exclude='.git' "$OUTPUT_SITE/" "$EXISTING_SITE/"
           git -C "$EXISTING_SITE" config user.name "github-actions[bot]"
           git -C "$EXISTING_SITE" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "$EXISTING_SITE" add --all
+          git -C "$EXISTING_SITE" add --all --force
           if ! git -C "$EXISTING_SITE" diff --cached --quiet; then
             git -C "$EXISTING_SITE" commit -m "Update TestimusPrime dashboard for run $GITHUB_RUN_ID"
             git -C "$EXISTING_SITE" push origin HEAD:gh-pages

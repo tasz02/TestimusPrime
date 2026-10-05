@@ -5,7 +5,7 @@ namespace TestimusPrime.Tests;
 
 public sealed class DashboardPublisherTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Directory.GetCurrentDirectory(), $".dashboard-publisher-tests-{Guid.NewGuid():N}");
+    private readonly string _root = Path.Combine(Path.GetTempPath(), $".dashboard-publisher-tests-{Guid.NewGuid():N}");
 
     public DashboardPublisherTests()
     {
@@ -109,7 +109,7 @@ public sealed class DashboardPublisherTests : IDisposable
     }
 
     [Fact]
-    public void Publish_CapsRecentCardsAtTenAndClampsHistoryLimitToOne()
+    public void Publish_CapsRecentCardsAtTenAndHonorsHistoryLimitOfOne()
     {
         for (var day = 1; day <= 12; day++)
         {
@@ -119,7 +119,7 @@ public sealed class DashboardPublisherTests : IDisposable
         Publish(20, "");
         Read(Path.Combine(Output, "data", "summary.json"))["recentRuns"]!.AsArray().Should().HaveCount(10);
         var secondOutput = Path.Combine(_root, "second-output");
-        DashboardPublisher.Publish(Reports, null, secondOutput, Assets, 0, "");
+        DashboardPublisher.Publish(Reports, null, secondOutput, Assets, 1, "");
         Read(Path.Combine(secondOutput, "data", "runs.json")).AsArray()
             .Should().ContainSingle(run => run!["runId"]!.GetValue<string>() == "run-12");
     }
@@ -133,11 +133,52 @@ public sealed class DashboardPublisherTests : IDisposable
     [InlineData("dashboard/./nested")]
     [InlineData(".")]
     [InlineData("dashboard//nested")]
+    [InlineData("dashboard/")]
+    [InlineData(".git")]
+    [InlineData("dashboard/.GIT/nested")]
+    [InlineData("dashboard name")]
+    [InlineData("dashboard\tname")]
+    [InlineData("dashboard\nname")]
+    [InlineData("dashboard%2fnested")]
+    [InlineData("dashboard?query")]
     public void Publish_RejectsUnsafeSubdirectoriesWithoutWriting(string subdirectory)
     {
         var action = () => Publish(20, subdirectory);
         action.Should().Throw<ArgumentException>();
         Directory.Exists(Output).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void Publish_RejectsNonpositiveHistoryLimitBeforeWriting(int historyLimit)
+    {
+        var action = () => Publish(historyLimit, "");
+        action.Should().Throw<ArgumentOutOfRangeException>();
+        Directory.Exists(Output).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Publish_ExcludesGitFilesAndDirectoriesAtEveryDepth()
+    {
+        WriteFile(Path.Combine(Existing, ".git", "config"), "private checkout metadata");
+        WriteFile(Path.Combine(Existing, "docs", ".git"), "gitdir: private worktree metadata");
+        WriteFile(Path.Combine(Existing, "docs", "nested", ".GIT", "config"), "private nested metadata");
+        WriteFile(Path.Combine(Existing, "docs", "reference.txt"), "preserved documentation");
+        WriteFile(Path.Combine(Assets, ".git", "config"), "private assets metadata");
+        WriteFile(Path.Combine(Assets, "nested", ".git"), "gitdir: private assets worktree metadata");
+        WriteFile(Path.Combine(Reports, ".git", "invalid.json"), "not a report");
+        WriteFile(Path.Combine(Reports, "nested", ".git"), "not JSON");
+        WriteReport(Reports, "valid", "2026-01-01T00:00:00Z", 1, 1, 0, 100);
+
+        Publish(20, "dashboard");
+
+        Directory.EnumerateFileSystemEntries(Output, "*", SearchOption.AllDirectories)
+            .Should().NotContain(path => Path.GetFileName(path).Equals(".git", StringComparison.OrdinalIgnoreCase));
+        File.ReadAllText(Path.Combine(Output, "docs", "reference.txt")).Should().Be("preserved documentation");
+        Read(Path.Combine(Output, "dashboard", "data", "runs.json")).AsArray().Should().ContainSingle();
+        File.ReadAllText(Path.Combine(Existing, ".git", "config")).Should().Be("private checkout metadata");
     }
 
     [Theory]

@@ -19,6 +19,7 @@ internal static class DashboardPublisher
         string dashboardSubdirectory)
     {
         ArgumentNullException.ThrowIfNull(dashboardSubdirectory);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(historyLimit);
         var subdirectory = ValidateSubdirectory(dashboardSubdirectory);
         var reports = NormalizePath(reportsDirectory);
         var assets = NormalizePath(assetsDirectory);
@@ -87,7 +88,7 @@ internal static class DashboardPublisher
 
         var kept = merged.Values
             .OrderByDescending(CompletedAt)
-            .Take(Math.Max(historyLimit, 1))
+            .Take(historyLimit)
             .ToArray();
         var filenames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var run in kept)
@@ -217,7 +218,10 @@ internal static class DashboardPublisher
         }
 
         if (Path.IsPathRooted(value) || value.Contains('\\') || value.Contains(':')
-            || value.Split('/').Any(part => part is "" or "." or ".."))
+            || value.Split('/').Any(part => part is "" or "." or ".."
+                || part.Equals(".git", StringComparison.OrdinalIgnoreCase))
+            || value.Any(character => !char.IsAsciiLetterOrDigit(character)
+                && character is not '/' and not '-' and not '_' and not '.'))
         {
             throw new ArgumentException("Dashboard subdirectory must be a safe relative path.", nameof(value));
         }
@@ -253,8 +257,18 @@ internal static class DashboardPublisher
         var files = new List<string>();
         void Visit(string path)
         {
+            if (IsGitEntry(path))
+            {
+                return;
+            }
+
             foreach (var entry in Directory.EnumerateFileSystemEntries(path).Order(StringComparer.Ordinal))
             {
+                if (IsGitEntry(entry))
+                {
+                    continue;
+                }
+
                 var attributes = File.GetAttributes(entry);
                 if ((attributes & FileAttributes.ReparsePoint) != 0)
                 {
@@ -276,6 +290,9 @@ internal static class DashboardPublisher
         return files.ToArray();
     }
 
+    private static bool IsGitEntry(string path) =>
+        Path.GetFileName(path).Equals(".git", StringComparison.OrdinalIgnoreCase);
+
     private static void CopySite(string source, string output, string subdirectory)
     {
         if (!Directory.Exists(source))
@@ -286,9 +303,14 @@ internal static class DashboardPublisher
         var refreshed = Path.Combine(source, subdirectory.Length == 0 ? "data" : subdirectory);
         void Copy(string directory)
         {
+            if (IsGitEntry(directory))
+            {
+                return;
+            }
+
             foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
             {
-                if (ContainsPath(refreshed, entry))
+                if (IsGitEntry(entry) || ContainsPath(refreshed, entry))
                 {
                     continue;
                 }
