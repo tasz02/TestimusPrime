@@ -1,0 +1,342 @@
+name: Analyze API (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        description: JSON configuration path relative to the caller checkout
+        required: true
+        type: string
+      tool-version:
+        description: Exact published TestimusPrime.Tool package version
+        default: "0.1.0"
+        type: string
+      api-base-url:
+        description: Optional API base URL override
+        default: ""
+        type: string
+      trigger:
+        description: Optional Commit or PullRequest override; empty honors configuration
+        default: ""
+        type: string
+      mode:
+        description: Optional Run, Generate, or ExecuteGenerated override; empty honors configuration
+        default: ""
+        type: string
+      publish-dashboard:
+        description: Explicitly opt in to publishing potentially sensitive reports to Pages
+        default: false
+        type: boolean
+      api-start-command:
+        description: Trusted caller shell command to start a local API
+        default: ""
+        type: string
+      api-ready-url:
+        description: HTTP readiness URL required when starting a local API
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    outputs:
+      reports-ready: ${{ steps.upload.outcome == 'success' && steps.reports.outputs.ready == 'true' }}
+      artifact-name: ${{ steps.paths.outputs.artifact-name }}
+    env:
+      CONFIG_PATH: ${{ inputs.config-path }}
+      TOOL_VERSION: ${{ inputs.tool-version }}
+      API_BASE_URL: ${{ inputs.api-base-url }}
+      SUITE_TRIGGER: ${{ inputs.trigger }}
+      RUN_MODE: ${{ inputs.mode }}
+      API_START_COMMAND: ${{ inputs.api-start-command }}
+      API_READY_URL: ${{ inputs.api-ready-url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate inputs and allocate fresh report directories
+        id: paths
+        shell: bash
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import re
+          import tempfile
+
+          workspace = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          value = os.environ["CONFIG_PATH"]
+          config = (workspace / value).resolve()
+          if pathlib.Path(value).is_absolute() or not config.is_relative_to(workspace) or not config.is_file():
+              raise SystemExit("config-path must identify a file inside the caller checkout.")
+          if any(ord(c) < 32 for c in str(config)):
+              raise SystemExit("Control characters are not allowed in config-path.")
+          if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", os.environ["TOOL_VERSION"]):
+              raise SystemExit("tool-version must be an exact package version, not a floating range.")
+          if os.environ["RUN_MODE"] not in ("", "Run", "Generate", "ExecuteGenerated"):
+              raise SystemExit("Invalid mode override.")
+          if os.environ["SUITE_TRIGGER"] not in ("", "Commit", "PullRequest"):
+              raise SystemExit("Invalid trigger override.")
+          if os.environ["API_START_COMMAND"] and not os.environ["API_READY_URL"]:
+              raise SystemExit("api-ready-url is required with api-start-command.")
+          root = pathlib.Path(tempfile.mkdtemp(prefix=".testimusprime-run-", dir=workspace))
+          for name in ("reports", "artifact"):
+              (root / name).mkdir()
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"config={config}\nroot={root}\nreports={root / 'reports'}\n")
+              output.write(f"artifact={root / 'artifact'}\n")
+              output.write(f"artifact-name=testimusprime-reports-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}-{root.name}\n")
+          PY
+
+      - name: Install published tool
+        shell: bash
+        run: dotnet tool install --global TestimusPrime.Tool --version "$TOOL_VERSION"
+
+      - name: Start API if requested and analyze caller repository
+        env:
+          RESOLVED_CONFIG: ${{ steps.paths.outputs.config }}
+          RUN_ROOT: ${{ steps.paths.outputs.root }}
+          REPORTS_DIRECTORY: ${{ steps.paths.outputs.reports }}
+        shell: bash
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import signal
+          import subprocess
+          import time
+
+          def interrupted(signum, frame):
+              raise SystemExit(128 + signum)
+
+          signal.signal(signal.SIGTERM, interrupted)
+          signal.signal(signal.SIGINT, interrupted)
+          api = None
+          try:
+              command = os.environ["API_START_COMMAND"]
+              if command:
+                  log = pathlib.Path(os.environ["RUN_ROOT"]) / "api-start.log"
+                  with log.open("w") as stream:
+                      api = subprocess.Popen(["bash", "-c", command], stdout=stream,
+                                             stderr=subprocess.STDOUT, start_new_session=True)
+                  for attempt in range(60):
+                      ready = subprocess.run(
+                          ["curl", "--fail", "--silent", "--output", "/dev/null",
+                           "--max-time", "2", "--url", os.environ["API_READY_URL"]],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                      if ready.returncode == 0:
+                          break
+                      if api.poll() is not None:
+                          raise SystemExit("API startup command exited before readiness.")
+                      time.sleep(2)
+                  else:
+                      raise SystemExit("API readiness timed out; startup logs are not uploaded.")
+              args = ["testimusprime", "--config=" + os.environ["RESOLVED_CONFIG"],
+                      "--output=" + os.environ["REPORTS_DIRECTORY"]]
+              for variable, option in (("API_BASE_URL", "api-base-url"),
+                                       ("SUITE_TRIGGER", "trigger"), ("RUN_MODE", "mode")):
+                  if os.environ[variable]:
+                      args.append("--" + option + "=" + os.environ[variable])
+              raise SystemExit(subprocess.run(args).returncode)
+          finally:
+              if api is not None:
+                  # Stop the command's process group, including child API processes.
+                  try:
+                      os.killpg(api.pid, signal.SIGTERM)
+                      time.sleep(2)
+                      os.killpg(api.pid, signal.SIGKILL)
+                  except ProcessLookupError:
+                      pass
+                  api.wait()
+          PY
+
+      - name: Select execution reports only
+        id: reports
+        if: ${{ always() && steps.paths.outcome == 'success' }}
+        env:
+          REPORTS_DIRECTORY: ${{ steps.paths.outputs.reports }}
+          ARTIFACT_DIRECTORY: ${{ steps.paths.outputs.artifact }}
+        shell: bash
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import pathlib
+          import shutil
+
+          count = 0
+          for path in pathlib.Path(os.environ["REPORTS_DIRECTORY"]).glob("*.json"):
+              if path.is_symlink() or not path.is_file():
+                  continue
+              try:
+                  report = json.loads(path.read_text())
+              except (ValueError, OSError):
+                  continue
+              if not isinstance(report, dict) or not report.get("runId") or not isinstance(report.get("summary"), dict) or not isinstance(report.get("results"), list):
+                  continue
+              shutil.copyfile(path, pathlib.Path(os.environ["ARTIFACT_DIRECTORY"]) / path.name)
+              count += 1
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"ready={'true' if count else 'false'}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Saved {count} execution report(s). Generation-only runs do not publish a dashboard.\n")
+          PY
+
+      - name: Upload reports even when tests fail (never API startup logs)
+        id: upload
+        if: ${{ always() && steps.reports.outputs.ready == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.paths.outputs.artifact-name }}
+          path: ${{ steps.paths.outputs.artifact }}/*.json
+          if-no-files-found: error
+
+  publish:
+    needs: analyze
+    if: >-
+      ${{ always() && !cancelled() && inputs.publish-dashboard &&
+          needs.analyze.outputs.reports-ready == 'true' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+           github.event_name == 'schedule') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    concurrency:
+      group: dashboard-pages-publish
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      CONFIG_PATH: ${{ inputs.config-path }}
+      TOOL_VERSION: ${{ inputs.tool-version }}
+    steps:
+      - name: Checkout the same trusted caller commit for configuration
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Allocate fresh publication directories
+        id: paths
+        shell: bash
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import tempfile
+
+          workspace = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          config = (workspace / os.environ["CONFIG_PATH"]).resolve()
+          if not config.is_relative_to(workspace) or not config.is_file():
+              raise SystemExit("Configuration must remain inside the caller checkout.")
+          root = pathlib.Path(tempfile.mkdtemp(prefix=".testimusprime-publish-", dir=workspace))
+          (root / "history").mkdir()
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"config={config}\nreports={root / 'reports'}\nsite={root / 'site'}\n")
+              output.write(f"history={root / 'history'}\nhistory-relative={root.name}/history\n")
+          PY
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.analyze.outputs.artifact-name }}
+          path: ${{ steps.paths.outputs.reports }}
+
+      - name: Probe consumer gh-pages history
+        id: history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          status=0
+          git ls-remote --exit-code --heads origin refs/heads/gh-pages > /dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif [ "$status" -eq 2 ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not read gh-pages; refusing to overwrite unknown history." >&2
+            exit "$status"
+          fi
+
+      - name: Checkout existing consumer site without cloning another repository
+        if: ${{ steps.history.outputs.exists == 'true' }}
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: ${{ steps.paths.outputs.history-relative }}
+          persist-credentials: false
+
+      - name: Install published tool and build the complete site
+        env:
+          RESOLVED_CONFIG: ${{ steps.paths.outputs.config }}
+          REPORTS_DIRECTORY: ${{ steps.paths.outputs.reports }}
+          EXISTING_SITE: ${{ steps.paths.outputs.history }}
+          OUTPUT_SITE: ${{ steps.paths.outputs.site }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install --global TestimusPrime.Tool --version "$TOOL_VERSION"
+          testimusprime --mode=PublishDashboard --config="$RESOLVED_CONFIG" \
+            --reports-directory="$REPORTS_DIRECTORY" --existing-site="$EXISTING_SITE" \
+            --output-site="$OUTPUT_SITE"
+
+      - name: Persist complete site and retained dashboard history
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXISTING_SITE: ${{ steps.paths.outputs.history }}
+          OUTPUT_SITE: ${{ steps.paths.outputs.site }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          if [ ! -d "$EXISTING_SITE/.git" ]; then
+            git -C "$EXISTING_SITE" init --initial-branch=gh-pages
+            git -C "$EXISTING_SITE" remote add origin "$(git remote get-url origin)"
+          fi
+          rsync -a --delete --exclude='.git' "$OUTPUT_SITE/" "$EXISTING_SITE/"
+          git -C "$EXISTING_SITE" config user.name "github-actions[bot]"
+          git -C "$EXISTING_SITE" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$EXISTING_SITE" add --all
+          if ! git -C "$EXISTING_SITE" diff --cached --quiet; then
+            git -C "$EXISTING_SITE" commit -m "Update TestimusPrime dashboard for run $GITHUB_RUN_ID"
+            git -C "$EXISTING_SITE" push origin HEAD:gh-pages
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload entire preserved site, not only the dashboard subdirectory
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.paths.outputs.site }}
+
+      - name: Deploy complete site
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Link the dynamically assigned Pages site
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          printf 'Pages site (dashboard may be in its configured subdirectory): %s\n' "$PAGE_URL" >> "$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,18 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>testimusprime</ToolCommandName>
+    <PackageId>TestimusPrime.Tool</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Generate and execute ASP.NET API tests and build a static GitHub Pages dashboard.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="../TestimusPrime.Dashboard/wwwroot/**/*"
+             Link="dashboard/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>
